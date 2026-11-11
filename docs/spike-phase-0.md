@@ -12,7 +12,7 @@ Metodo:
 
 | # | Domanda | Risposta | Verifica |
 |---|---|---|---|
-| 1 | Il cookie di sessione resta dopo il riavvio dell'IDE? | Sì, con 4 eccezioni | Server: test. JCEF: codice. Riavvio reale: not verified. |
+| 1 | Il cookie di sessione resta dopo il riavvio dell'IDE? | Sì, con 4 eccezioni | Server: test. JCEF: codice. Riavvio reale: verificato con `runIde` (fase 2). |
 | 2 | `t3 project add` è idempotente? Formato di `$projectKey`? | No. `$projectKey` è una chiave interna del client web. | Test e codice |
 | 3 | Un secondo `t3 serve` sulla stessa home va in conflitto? | No. Il secondo server si ferma con exit 78. | Test su home isolata |
 | 4 | Esc, Ctrl+K, Ctrl+Enter arrivano alla pagina JCEF? | No. L'IDE esegue prima le azioni del keymap. | Codice |
@@ -40,9 +40,9 @@ Conseguenze per il piano:
 - Il plugin crea un pairing solo se la sessione manca. Per controllare la sessione, la pagina chiama `GET /api/auth/session`.
 - Il plugin non può leggere il cookie da JavaScript, perché il cookie è `HttpOnly`.
 
-Not verified:
-- Un riavvio reale dell'IDE con il cookie T3.
-- Il pairing sul server dell'app desktop. Il classificatore dei permessi ha bloccato il test sul server live.
+Verificato dopo lo spike (2026-11-11, `runIde` della fase 2, server dell'app desktop su 3773):
+- Il plugin crea un pairing e la web UI lo scambia: 1 sessione `JetBrains IntelliJ IDEA – demo-project`.
+- Dopo un riavvio dell'IDE, la UI si apre senza un nuovo pairing: la sessione resta 1.
 
 ## 2. `t3 project add` e `$projectKey`
 

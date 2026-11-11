@@ -104,7 +104,7 @@ Stato (2026-11-11):
 - `./gradlew verifyPlugin`: "Compatible" con IU-262.11879.100 e IU-263.7307.200, 0 errori.
   Avvisi: 4 (262) e 5 (263) usi di API deprecate, 6 usi di API sperimentali.
   Cause: i metodi bridge che Kotlin genera in `T3ToolWindowFactory` per i metodi default di `ToolWindowFactory`, e il costruttore `DynamicBundle(String)` in `T3Bundle` (deprecato in 263).
-- `./gradlew runIde`: not verified.
+- `./gradlew runIde`: il tool window `T3 Code` si apre (verificato nella fase 2).
 
 ### Fase 2 – MVP locale
 
@@ -112,11 +112,20 @@ Il plugin implementa i componenti della tabella e il fallback senza JCEF.
 Criterio di uscita: IntelliJ IDEA e PyCharm su Linux mostrano T3 sul progetto aperto, senza login manuale.
 
 Stato (2026-11-11):
-- `T3ServerService` e `T3PairingService` sono pronti, con 32 test unitari. Il tool window non usa ancora i 2 servizi.
+- `T3ServerService` e `T3PairingService` sono pronti, con 32 test unitari.
+- Il tool window `T3 Code` esegue i passi 1–6 del flusso: `T3BrowserPanel` con JCEF, `T3FallbackPanel` senza JCEF, azione "Reconnect to T3".
+- Fatti JCEF verificati con `runIde`:
+  - Il browser resta nascosto durante il controllo della sessione. Serve `setCreateImmediately(true)`, altrimenti CEF non crea il browser nativo e la pagina non si carica.
+  - Un `JBCefJSQuery` creato dopo il browser nativo richiede `JBCefClient.Properties.JS_QUERY_POOL_SIZE` sul client.
 - Ogni comando `t3` riceve `--base-dir <home>`: il plugin e la CLI usano sempre la stessa home.
 - `T3CliIntegrationTest` usa la CLI reale su una home isolata e una porta libera: avvia `t3 serve`, crea un link di pairing e ferma il server.
   Esito: verde in 3,6 s. Comando: `T3_CLI_IT=1 ./gradlew test --tests com.bicf.t3plugin.T3CliIntegrationTest`.
-- Prossimo passo: il tool window carica `JBCefBrowser` e usa i 2 servizi (passi 1–6 del flusso). Poi `T3ProjectBinder` e `T3ThemeSync`.
+- `runIde` (IU 2026.2.3, Linux, KDE Wayland) con il server dell'app desktop su 3773:
+  1. Primo avvio: il plugin crea un pairing, la web UI scambia il token e il tool window mostra `http://127.0.0.1:3773/` ("T3 Code (Beta)").
+     `t3 auth session list` mostra 1 sessione `JetBrains IntelliJ IDEA – demo-project`, valida 30 giorni.
+  2. Secondo avvio: il tool window mostra la UI senza un nuovo pairing. Il numero di sessioni resta 1.
+- Not verified: `T3FallbackPanel` (questo IDE ha JCEF), gli errori mostrati nel tool window, i link esterni e i popup della web UI.
+- Prossimo passo: `T3LinkHandler`, poi `T3ProjectBinder` (passo 7) e `T3ThemeSync`.
 
 ### Fase 3 – Integrazione con l'IDE
 

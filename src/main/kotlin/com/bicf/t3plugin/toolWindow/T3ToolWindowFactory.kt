@@ -1,33 +1,40 @@
 package com.bicf.t3plugin.toolWindow
 
 import com.bicf.t3plugin.T3Bundle
+import com.intellij.icons.AllIcons
+import com.intellij.openapi.actionSystem.ActionUpdateThread
+import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.project.DumbAware
+import com.intellij.openapi.project.DumbAwareAction
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.wm.ToolWindow
 import com.intellij.openapi.wm.ToolWindowFactory
-import com.intellij.ui.components.JBLabel
 import com.intellij.ui.content.ContentFactory
 import com.intellij.ui.jcef.JBCefApp
-import java.awt.BorderLayout
-import javax.swing.JPanel
-import javax.swing.SwingConstants
 
 /**
- * Phase 1 scaffold: an empty "T3 Code" tool window.
- * Phase 2 replaces the placeholder with a JBCefBrowser that loads the paired T3 Code web UI.
+ * The "T3 Code" tool window.
+ * With JCEF it shows the T3 Code web UI; without JCEF it offers to open T3 Code in the system browser.
  */
 class T3ToolWindowFactory : ToolWindowFactory, DumbAware {
 
     override fun createToolWindowContent(project: Project, toolWindow: ToolWindow) {
-        val message = if (JBCefApp.isSupported()) {
-            T3Bundle["toolWindow.placeholder"]
+        val factory = ContentFactory.getInstance()
+        val content = if (JBCefApp.isSupported()) {
+            val panel = T3BrowserPanel(project)
+            toolWindow.setTitleActions(listOf(ReconnectAction(panel)))
+            factory.createContent(panel.component, null, false).apply { setDisposer(panel) }
         } else {
-            T3Bundle["toolWindow.jcefUnsupported"]
+            factory.createContent(T3FallbackPanel(project).component, null, false)
         }
-        val panel = JPanel(BorderLayout()).apply {
-            add(JBLabel(message, SwingConstants.CENTER), BorderLayout.CENTER)
-        }
-        val content = ContentFactory.getInstance().createContent(panel, null, false)
         toolWindow.contentManager.addContent(content)
+    }
+
+    private class ReconnectAction(private val panel: T3BrowserPanel) :
+        DumbAwareAction(T3Bundle.messagePointer("action.reconnect.text"), AllIcons.Actions.Refresh) {
+
+        override fun actionPerformed(e: AnActionEvent) = panel.connect()
+
+        override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.EDT
     }
 }
