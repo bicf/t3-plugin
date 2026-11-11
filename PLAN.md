@@ -44,8 +44,8 @@ IDE JetBrains
 | Componente | Livello | Compito |
 |---|---|---|
 | `T3ToolWindowFactory` | progetto | Crea il tool window. Mostra `JBCefBrowser` oppure il fallback. |
-| `T3ServerService` | applicazione | Trova il server (`server-runtime.json`, `T3CODE_HOME`). Controlla `pid` e porta. Se il server manca, avvia `t3 serve --no-browser`. Con exit 78 (`ServerAlreadyRunningError`), rilegge `server-runtime.json`. |
-| `T3PairingService` | applicazione | Esegue `t3 auth pairing create --json` e restituisce il link `/pair#token=...`. |
+| `T3ServerService` | applicazione | Trova il server (`server-runtime.json`, `T3CODE_HOME`). Controlla `pid` e porta. Se il server manca, avvia `t3 serve --no-browser`. Con exit 78 (`ServerAlreadyRunningError`), rilegge `server-runtime.json`. Scarta l'output di `t3 serve`, perché contiene un token. Alla chiusura dell'IDE, ferma solo il server che ha avviato. |
+| `T3PairingService` | applicazione | Esegue `t3 auth pairing create --json` e restituisce il link `/pair#token=...`. Accetta solo un link sull'origin del server. Non scrive mai il link o lo stdout nei messaggi di errore. |
 | `T3ProjectBinder` | progetto | Esegue `t3 project add <basePath>`. Tratta `ProjectAlreadyExistsError` (exit 1) come successo. Apre il thread più recente (`/$environmentId/$threadId`), oppure `/`. |
 | `T3ThemeSync` | progetto | Invia il tema dell'IDE alla pagina con JavaScript a ogni `LafManagerListener.lookAndFeelChanged`. |
 | `T3LinkHandler` | browser | Apre nel browser di sistema gli URL esterni all'origin T3 (`onBeforeBrowse`, `onBeforePopup`). |
@@ -111,6 +111,13 @@ Stato (2026-11-11):
 Il plugin implementa i componenti della tabella e il fallback senza JCEF.
 Criterio di uscita: IntelliJ IDEA e PyCharm su Linux mostrano T3 sul progetto aperto, senza login manuale.
 
+Stato (2026-11-11):
+- `T3ServerService` e `T3PairingService` sono pronti, con 32 test unitari. Il tool window non usa ancora i 2 servizi.
+- Ogni comando `t3` riceve `--base-dir <home>`: il plugin e la CLI usano sempre la stessa home.
+- `T3CliIntegrationTest` usa la CLI reale su una home isolata e una porta libera: avvia `t3 serve`, crea un link di pairing e ferma il server.
+  Esito: verde in 3,6 s. Comando: `T3_CLI_IT=1 ./gradlew test --tests com.bicf.t3plugin.T3CliIntegrationTest`.
+- Prossimo passo: il tool window carica `JBCefBrowser` e usa i 2 servizi (passi 1–6 del flusso). Poi `T3ProjectBinder` e `T3ThemeSync`.
+
 ### Fase 3 – Integrazione con l'IDE
 
 - Azione editor "Ask T3 about selection": esegue `t3 thread start` e `t3 thread send` con `file:line` e il testo selezionato.
@@ -140,6 +147,7 @@ Criterio di uscita: IntelliJ IDEA e PyCharm su Linux mostrano T3 sul progetto ap
 - La CLI `t3` non è un'API pubblica stabile. Una nuova versione può cambiare flag o output.
   Il plugin controlla `t3 --version` e richiede una versione minima.
 - Ogni pairing crea una sessione sul server. Senza revoca, le sessioni si accumulano in `t3 auth session list`.
+- Se il plugin avvia `t3 serve` su `~/.t3`, l'app desktop aperta dopo trova la home occupata. Il comportamento dell'app desktop in questo caso è not verified.
 - Il link `/pair#token=...` contiene un segreto. Il plugin non scrive il link nei log. Il token è monouso e scade dopo 2 minuti.
 - Ogni progetto aperto crea un `JBCefBrowser`, e ogni browser usa memoria.
 - JCEF cancella la cache, e quindi la sessione T3, in 4 casi (spike 1). Il plugin rifà il pairing quando `GET /api/auth/session` fallisce.
