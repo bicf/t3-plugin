@@ -5,3 +5,6 @@
 ## [Unreleased]
 ### Added
 - Initial scaffold created from [IntelliJ Platform Plugin Template](https://github.com/JetBrains/intellij-platform-plugin-template)
+- `T3ServerService`: connects to a running T3 server, or starts `t3 serve --no-browser` when no server answers.
+- `T3PairingService`: creates a one-time pairing link with `t3 auth pairing create`.
+- "T3 Code" tool window: shows the T3 Code web UI in JCEF and pairs the IDE only when no session exists. Without JCEF, it opens T3 Code in the system browser.
