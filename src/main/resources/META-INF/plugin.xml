@@ -1,0 +1,24 @@
+<!-- Plugin Configuration File. Read more: https://plugins.jetbrains.com/docs/intellij/plugin-configuration-file.html -->
+<idea-plugin>
+    <id>com.bicf.t3plugin</id>
+    <name>T3 Code Host (Unofficial)</name>
+    <vendor>bicf</vendor>
+    <description><![CDATA[
+        <p>Shows the <a href="https://t3.codes">T3 Code</a> web UI in a tool window of JetBrains IDEs.</p>
+        <p>The plugin connects to a running T3 Code server on this machine, or starts <code>t3 serve</code> when no server runs.</p>
+        <p>This plugin is not affiliated with or endorsed by the T3 Code project.</p>
+    ]]></description>
+
+    <depends>com.intellij.modules.platform</depends>
+    <!-- Since 2026.2 the JCEF API is provided by the bundled "Web Browser (JCEF)" plugin. -->
+    <depends>com.intellij.modules.jcef</depends>
+
+    <resource-bundle>messages.T3Bundle</resource-bundle>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <toolWindow id="T3 Code"
+                    anchor="right"
+                    icon="/icons/toolWindow.svg"
+                    factoryClass="com.bicf.t3plugin.toolWindow.T3ToolWindowFactory"/>
+    </extensions>
+</idea-plugin>
