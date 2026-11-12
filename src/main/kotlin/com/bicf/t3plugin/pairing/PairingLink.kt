@@ -25,5 +25,17 @@ class PairingLink(val url: String, val expiresAt: String?) {
             if (!url.startsWith(prefix) || url.length == prefix.length) return null
             PairingLink(url, fields["expiresAt"]?.jsonPrimitive?.contentOrNull)
         }.getOrNull()
+
+        /**
+         * Reads a link that the user pasted, for example from `t3 pair` on a remote host.
+         * Returns null when the text is not `<origin>/pair#token=<token>`, or when the token contains white space.
+         */
+        fun fromPasted(text: String?, origin: String): PairingLink? {
+            val url = text?.trim() ?: return null
+            val prefix = "${origin.trimEnd('/')}/pair#token="
+            val token = url.removePrefix(prefix)
+            if (!url.startsWith(prefix) || token.isEmpty() || token.any { it.isWhitespace() }) return null
+            return PairingLink(url, null)
+        }
     }
 }

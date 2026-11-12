@@ -4,10 +4,11 @@ import com.bicf.t3plugin.T3Exception
 import com.bicf.t3plugin.T3Exception.Reason
 import com.bicf.t3plugin.server.T3Cli
 import com.bicf.t3plugin.server.T3Home
-import com.bicf.t3plugin.server.T3Runtime
 import com.intellij.openapi.application.ApplicationNamesInfo
+import com.intellij.openapi.application.PathManager
 import com.intellij.openapi.components.Service
 import com.intellij.util.concurrency.annotations.RequiresBackgroundThread
+import java.security.MessageDigest
 import java.time.Duration
 
 /**
@@ -16,31 +17,39 @@ import java.time.Duration
  * Rules:
  * - A link is valid for [PAIRING_TTL] and for one exchange only.
  * - Each exchange creates a session on the server. The caller asks for a link only when `GET /api/auth/session` fails.
+ * - Before a new pairing, the service revokes the old sessions with the same label (see [sessionLabel]).
  * - The service accepts only a link on the origin of the server.
  */
 @Service(Service.Level.APP)
 class T3PairingService {
 
     /**
-     * Creates a pairing link for [runtime]. [label] appears in `t3 auth session list`.
-     * Blocks for up to 60 s.
+     * Creates a pairing link for the local server at [origin]. [label] appears in `t3 auth session list`.
+     * Blocks for up to 3 CLI calls of 60 s each.
      *
      * @throws T3Exception when the `t3` command is missing or does not print a link.
      */
     @RequiresBackgroundThread
-    fun createPairingLink(runtime: T3Runtime, label: String): PairingLink {
-        val home = T3Home.detect()
-        val cli = T3Cli.detect(home) ?: throw T3Exception(
-            Reason.CLI_NOT_FOUND,
-            "The `t3` command is not in ${home.dir.resolve("bin")}, ~/.t3/bin or PATH.",
-        )
-        return runPairingCreate(cli, runtime.origin, label)
+    fun createPairingLink(origin: String, label: String): PairingLink {
+        val cli = T3Cli.require(T3Home.detect())
+        T3Sessions.revokeWithLabel(cli, label)
+        return runPairingCreate(cli, origin, label)
     }
 
     companion object {
-        /** Label for a session of this IDE, for example "JetBrains IntelliJ IDEA – t3-plugin". */
-        fun labelFor(projectName: String): String =
-            "JetBrains ${ApplicationNamesInfo.getInstance().fullProductName} – $projectName"
+        /**
+         * Label for the sessions of this IDE installation, for example "JetBrains IntelliJ IDEA (3fa9c1)".
+         * All projects of one IDE share one JCEF cookie store, which lives in the system directory of the IDE.
+         * The hash of that directory therefore names exactly one cookie store: a session with the same label
+         * and no valid cookie is a lost session, and the service can revoke it.
+         */
+        fun sessionLabel(): String = labelFor(ApplicationNamesInfo.getInstance().fullProductName, PathManager.getSystemPath())
+
+        internal fun labelFor(productName: String, systemPath: String): String {
+            val digest = MessageDigest.getInstance("SHA-256").digest(systemPath.toByteArray(Charsets.UTF_8))
+            val hash = digest.take(3).joinToString("") { "%02x".format(it) }
+            return "JetBrains $productName ($hash)"
+        }
     }
 }
 
@@ -60,8 +69,7 @@ internal fun runPairingCreate(
     val exitCode = result.exitCode
         ?: throw T3Exception(Reason.PAIRING_FAILED, "`t3 auth pairing create` did not stop within ${timeout.seconds} s.")
     if (exitCode != 0) {
-        val detail = result.stderr.lineSequence().lastOrNull { it.isNotBlank() }?.trim()?.take(300).orEmpty()
-        throw T3Exception(Reason.PAIRING_FAILED, "`t3 auth pairing create` stopped with exit code $exitCode. $detail".trim())
+        throw T3Exception(Reason.PAIRING_FAILED, "`t3 auth pairing create` stopped with exit code $exitCode. ${result.lastErrorLine}".trim())
     }
     // Never put stdout in a message or a log: it contains the token.
     return PairingLink.parse(result.stdout, origin) ?: throw T3Exception(

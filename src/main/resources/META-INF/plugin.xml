@@ -20,5 +20,19 @@
                     anchor="right"
                     icon="/icons/toolWindow.svg"
                     factoryClass="com.bicf.t3plugin.toolWindow.T3ToolWindowFactory"/>
+        <applicationConfigurable parentId="tools"
+                                 id="com.bicf.t3plugin.settings"
+                                 key="settings.displayName"
+                                 instance="com.bicf.t3plugin.settings.T3Configurable"/>
+        <statusBarWidgetFactory id="com.bicf.t3plugin.ServerStatus"
+                                implementation="com.bicf.t3plugin.statusBar.T3StatusWidgetFactory"/>
+        <notificationGroup id="T3 Code" displayType="BALLOON" key="notification.group"/>
     </extensions>
+
+    <actions>
+        <action id="com.bicf.t3plugin.AskAboutSelection"
+                class="com.bicf.t3plugin.actions.T3AskAboutSelectionAction">
+            <add-to-group group-id="EditorPopupMenu" anchor="last"/>
+        </action>
+    </actions>
 </idea-plugin>

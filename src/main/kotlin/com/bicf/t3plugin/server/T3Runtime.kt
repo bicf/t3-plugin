@@ -23,15 +23,7 @@ data class T3Runtime(val pid: Long, val port: Int, val origin: String) {
      */
     fun isReachable(connectTimeout: Duration = Duration.ofMillis(500)): Boolean {
         val alive = ProcessHandle.of(pid).map(ProcessHandle::isAlive).orElse(false)
-        if (!alive) return false
-        val uri = URI(origin)
-        val target = InetSocketAddress(uri.host, if (uri.port > 0) uri.port else port)
-        return try {
-            Socket().use { it.connect(target, connectTimeout.toMillis().toInt()) }
-            true
-        } catch (e: IOException) {
-            false
-        }
+        return alive && acceptsConnections(origin, connectTimeout)
     }
 
     companion object {
@@ -52,5 +44,22 @@ data class T3Runtime(val pid: Long, val port: Int, val origin: String) {
         } catch (e: IOException) {
             null
         }
+    }
+}
+
+/** True when the host and port of [origin] accept a TCP connection. The default port is 80 for http and 443 for https. */
+fun acceptsConnections(origin: String, connectTimeout: Duration = Duration.ofMillis(500)): Boolean {
+    val uri = runCatching { URI(origin) }.getOrNull() ?: return false
+    val host = uri.host ?: return false
+    val port = when {
+        uri.port > 0 -> uri.port
+        uri.scheme.equals("https", ignoreCase = true) -> 443
+        else -> 80
+    }
+    return try {
+        Socket().use { it.connect(InetSocketAddress(host, port), connectTimeout.toMillis().toInt()) }
+        true
+    } catch (e: IOException) {
+        false
     }
 }

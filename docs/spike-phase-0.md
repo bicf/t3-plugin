@@ -72,6 +72,9 @@ Conseguenze per il piano:
 
 Not verified: il test con la home dell'app desktop (`~/.t3`). Il lock è lo stesso codice, ma il test usa una home isolata.
 
+Verificato nel codice dopo lo spike (2026-11-12, bundle 0.1.9): l'app desktop non si collega a un server che già occupa la home.
+`finalizeRun` del backend desktop tratta l'exit 78 come `stateDirOwned` e mostra il dialog "This T3 home is unavailable".
+
 ## 4. Tastiera nel tool window
 
 Fatti:
