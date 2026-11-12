@@ -47,16 +47,19 @@ IDE JetBrains
 | `T3ServerService` | applicazione | Trova il server (`server-runtime.json`, `T3CODE_HOME`). Controlla `pid` e porta. Se il server manca, avvia `t3 serve --no-browser`. Con exit 78 (`ServerAlreadyRunningError`), rilegge `server-runtime.json`. Scarta l'output di `t3 serve`, perché contiene un token. Alla chiusura dell'IDE, ferma solo il server che ha avviato. |
 | `T3PairingService` | applicazione | Esegue `t3 auth pairing create --json` e restituisce il link `/pair#token=...`. Accetta solo un link sull'origin del server. Non scrive mai il link o lo stdout nei messaggi di errore. |
 | `T3ProjectBinder` | progetto | Esegue `t3 project add <basePath>`. Tratta `ProjectAlreadyExistsError` (exit 1) come successo. Apre il thread più recente (`/$environmentId/$threadId`), oppure `/`. |
-| `T3ThemeSync` | progetto | Invia il tema dell'IDE alla pagina con JavaScript a ogni `LafManagerListener.lookAndFeelChanged`. |
-| `T3LinkHandler` | browser | Apre nel browser di sistema gli URL esterni all'origin T3 (`onBeforeBrowse`, `onBeforePopup`). |
-| `T3Settings` | applicazione | Percorso della CLI, URL di un server remoto, avvio automatico del server. |
+| `T3ThemeSync` | progetto | Scrive `light` o `dark` in localStorage (`t3code:theme-appearance-mode`) e invia un evento `storage`: la pagina cambia tema senza ricaricarsi. Gira a ogni caricamento e a ogni `LafManagerListener.lookAndFeelChanged`. |
+| `T3LinkHandler` (`T3LinkPolicy` + handler del pannello) | browser | Apre nel browser di sistema gli URL esterni all'origin T3. Navigazioni: `onBeforeBrowse`. Popup e link `target="_blank"`: un ponte JavaScript nella pagina, perché con JCEF out-of-process `onBeforePopup` non arriva al plugin. |
+| `T3Settings` | applicazione | Settings → Tools → T3 Code: percorso della CLI, URL di un server remoto, avvio automatico del server. |
+| `T3AskAboutSelectionAction` | editor | "Ask T3 About Selection…": `t3 thread send` al thread aperto, oppure `t3 thread start` nel progetto. |
+| `T3StatusWidgetFactory` | progetto | Widget della status bar: `T3: running`, `stopped`, `error`, `remote`. Un controllo ogni 10 s. |
 
 Flusso all'apertura del tool window:
 1. Il plugin chiama `JBCefApp.isSupported()`. Se il risultato è `false`, il plugin mostra il pulsante "Apri nel browser".
 2. `T3ServerService` legge `server-runtime.json` e controlla il processo e la porta.
 3. Se il server non risponde, `T3ServerService` avvia `t3 serve --no-browser` e aspetta un nuovo `server-runtime.json`.
 4. `JBCefBrowser` carica l'origin T3, e la pagina chiama `GET /api/auth/session`. Se la sessione è valida, il flusso va al passo 7.
-5. `T3PairingService` crea un token con TTL di 2 minuti e label `JetBrains <IDE> – <progetto>`.
+5. `T3PairingService` revoca le sessioni con la stessa label, poi crea un token con TTL di 2 minuti e label `JetBrains <IDE> (<hash>)`.
+   L'hash viene dalla cartella system dell'IDE: tutti i progetti di un IDE usano lo stesso archivio di cookie JCEF.
 6. `JBCefBrowser` carica il link `/pair#token=...`. La web UI scambia il token con un cookie di sessione valido 30 giorni.
 7. `T3ProjectBinder` registra la root del progetto e apre il thread più recente del progetto, oppure `/`.
 
@@ -78,6 +81,29 @@ Regole:
 - Il plugin non cambia il keymap dell'utente.
 - Workaround per l'utente: togliere il tasto dall'azione dell'IDE in Settings → Keymap. Effetto sulla pagina: not verified.
 - Quando la versione minima passa a `263`, il tool window usa `KeyboardAwareContainer` (API sperimentale) e questo limite sparisce.
+
+### JCEF sospeso da AppArmor (Ubuntu 24.04+ e derivate)
+
+Con `kernel.apparmor_restrict_unprivileged_userns = 1`, la piattaforma sospende ogni browser JCEF senza un profilo AppArmor.
+Il tool window mostra allora "Embedded Browser is suspended" con il pulsante "Enable Browser…", che offre di installare il profilo o di disattivare il sandbox.
+Il plugin non può risolvere questo limite: dipende dal sistema. Il `runIde` della sandbox lo mostra sempre, perché l'IDE gira dalla cache di Gradle.
+Per i test, la sandbox usa `ide.browser.jcef.sandbox.enable=false`.
+
+### Avvisi del Plugin Verifier
+
+`./gradlew verifyPlugin` dà "Compatible" e 0 errori su IU-262.11879.100 e IU-263.7307.200 (2026-11-12). Il plugin mantiene questi avvisi:
+
+| Avviso | 262 | 263 | Causa |
+|---|---|---|---|
+| API deprecate | 6 | 7 | Kotlin genera metodi bridge per `isApplicable` e `isDoNotActivateOnStart` di `ToolWindowFactory`, e per `getPresentation(PlatformType)` di `StatusBarWidget`. Su 263 si aggiunge il costruttore `DynamicBundle(String)` in `T3Bundle`. |
+| API sperimentali | 6 | 6 | Kotlin genera metodi bridge in `T3ToolWindowFactory` per `getAnchor`, `getIcon` e `manage` di `ToolWindowFactory`. |
+
+Il plugin non usa API "scheduled for removal". La ricerca della CLI in `PATH` non usa `PathEnvironmentVariableUtil.findInPath`, deprecato in 263.
+
+Regole:
+- Il codice sorgente non sovrascrive e non chiama questi metodi. Gli avvisi vengono solo dai metodi bridge e dal costruttore del bundle.
+- Gli avvisi non bloccano `verifyPlugin` né la CI. L'effetto sulla revisione del Marketplace è not verified.
+- Correzioni possibili, non applicate: l'opzione Kotlin `-jvm-default=no-compatibility` per i metodi bridge (effetto: not verified) e `DynamicBundle(T3Bundle::class.java, BUNDLE)` per il bundle.
 
 ## Fasi
 
@@ -117,15 +143,29 @@ Stato (2026-11-11):
 - Fatti JCEF verificati con `runIde`:
   - Il browser resta nascosto durante il controllo della sessione. Serve `setCreateImmediately(true)`, altrimenti CEF non crea il browser nativo e la pagina non si carica.
   - Un `JBCefJSQuery` creato dopo il browser nativo richiede `JBCefClient.Properties.JS_QUERY_POOL_SIZE` sul client.
-- Ogni comando `t3` riceve `--base-dir <home>`: il plugin e la CLI usano sempre la stessa home.
-- `T3CliIntegrationTest` usa la CLI reale su una home isolata e una porta libera: avvia `t3 serve`, crea un link di pairing e ferma il server.
-  Esito: verde in 3,6 s. Comando: `T3_CLI_IT=1 ./gradlew test --tests com.bicf.t3plugin.T3CliIntegrationTest`.
-- `runIde` (IU 2026.2.3, Linux, KDE Wayland) con il server dell'app desktop su 3773:
-  1. Primo avvio: il plugin crea un pairing, la web UI scambia il token e il tool window mostra `http://127.0.0.1:3773/` ("T3 Code (Beta)").
-     `t3 auth session list` mostra 1 sessione `JetBrains IntelliJ IDEA – demo-project`, valida 30 giorni.
-  2. Secondo avvio: il tool window mostra la UI senza un nuovo pairing. Il numero di sessioni resta 1.
-- Not verified: `T3FallbackPanel` (questo IDE ha JCEF), gli errori mostrati nel tool window, i link esterni e i popup della web UI.
-- Prossimo passo: `T3LinkHandler`, poi `T3ProjectBinder` (passo 7) e `T3ThemeSync`.
+- Ogni comando `t3` riceve la home in `T3CODE_HOME` (prima: `--base-dir`): così nessuna opzione segue un argomento posizionale.
+- `T3CliIntegrationTest` usa la CLI reale su una home isolata e una porta libera: avvia `t3 serve`, esegue 2 volte `T3ProjectBinder.bind`,
+  crea un pairing, scambia il token come la pagina `/pair`, revoca la sessione per label e ferma il server.
+  Esito: verde in 8,9 s. Comando: `T3_CLI_IT=1 ./gradlew test --tests com.bicf.t3plugin.T3CliIntegrationTest`.
+- `runIde` (IU 2026.2.3, Linux, KDE Wayland) con il server dell'app desktop su 3773 (2026-11-11):
+  1. Primo avvio: il plugin crea un pairing e la pagina T3 si carica (DevTools). `t3 auth session list` mostra 1 sessione nuova.
+  2. Secondo avvio: la pagina si carica senza un nuovo pairing. Il numero di sessioni resta 1.
+  3. Correzione (2026-11-12): in queste prove il tool window mostrava l'avviso di AppArmor "Embedded Browser is suspended" sopra la pagina (sezione "Limiti noti").
+- Stato (2026-11-12), con i passi 1–7, `T3LinkHandler`, `T3ThemeSync` e `T3Settings`. Prove su una home T3 isolata (porta 3898), con il sandbox JCEF spento nella sandbox IDE:
+
+  | Prova | IDE | Risultato |
+  |---|---|---|
+  | Flusso completo | IU 2026.2.3 | Pairing (label `JetBrains IntelliJ IDEA (61bdad)`), progetto registrato, UI "demo-project / New thread" visibile (screenshot DevTools). Widget: `T3: running`. |
+  | Flusso completo | PyCharm 2026.2.4 | UI "demo-project / New thread", progetto già presente (`ProjectAlreadyExistsError` come successo), sessione `JetBrains PyCharm (e0fe4a)`. |
+  | Revoca | PyCharm 2026.2.4 | Dopo la cancellazione dei cookie, nuovo pairing: la vecchia sessione PyCharm è revocata, la sessione IntelliJ resta. |
+  | Tema | IU 2026.2.3 | localStorage `dark` su IDE scuro. Lo script con `light` cambia la pagina senza ricarica. |
+  | Popup | IU 2026.2.3 | `window.open` sulla stessa origin si carica nel pannello; `about:blank` è bloccato. |
+  | Server fermo, avvio automatico spento | IU 2026.2.3 | "T3 Code is not available. No T3 server answers, and automatic start is off…" con "Retry". Widget: `T3: error`. |
+  | JCEF spento | IU 2026.2.3 | `T3FallbackPanel` con "Open T3 Code in Browser". |
+
+- Not verified a runtime (servono clic o aprono il tuo browser): link esterni nel browser di sistema, il pulsante del fallback,
+  il cambio di tema dell'IDE dal vivo, "Ask T3 About Selection" con un agente reale, il server remoto con un link incollato.
+- Criterio di uscita della fase 2: raggiunto su Linux per IntelliJ IDEA e PyCharm, con la home T3 isolata.
 
 ### Fase 3 – Integrazione con l'IDE
 
@@ -133,6 +173,9 @@ Stato (2026-11-11):
 - Widget nella status bar con lo stato del server: attivo, fermo, errore.
 - Server remoto: l'utente incolla un link `/pair#token=...`, creato con `t3 pair` sull'host remoto.
 - Rifinitura di `T3ThemeSync`: il tema cambia dal vivo, senza ricaricare la pagina.
+
+Stato (2026-11-12): l'azione editor, il widget, il server remoto e il tema dal vivo sono implementati, con test unitari.
+L'azione e il server remoto sono not verified a runtime.
 
 ### Fase 4 – Qualità e CI
 
@@ -155,8 +198,11 @@ Stato (2026-11-11):
 
 - La CLI `t3` non è un'API pubblica stabile. Una nuova versione può cambiare flag o output.
   Il plugin controlla `t3 --version` e richiede una versione minima.
-- Ogni pairing crea una sessione sul server. Senza revoca, le sessioni si accumulano in `t3 auth session list`.
-- Se il plugin avvia `t3 serve` su `~/.t3`, l'app desktop aperta dopo trova la home occupata. Il comportamento dell'app desktop in questo caso è not verified.
+- Ogni pairing crea una sessione sul server. Il plugin revoca le sessioni con la stessa label prima di un nuovo pairing.
+  Il pulsante del fallback usa una label propria (`… – system browser`): un nuovo clic revoca la sessione del clic precedente.
+- Se il plugin avvia `t3 serve` su `~/.t3`, l'app desktop aperta dopo non si collega a quel server.
+  Il suo backend esce con codice 78 e l'app mostra il dialog "This T3 home is unavailable" (verificato nel codice del bundle 0.1.9, non con una prova reale).
+  Il commento dell'opzione "Start t3 serve…" in Settings avvisa l'utente.
 - Il link `/pair#token=...` contiene un segreto. Il plugin non scrive il link nei log. Il token è monouso e scade dopo 2 minuti.
 - Ogni progetto aperto crea un `JBCefBrowser`, e ogni browser usa memoria.
 - JCEF cancella la cache, e quindi la sessione T3, in 4 casi (spike 1). Il plugin rifà il pairing quando `GET /api/auth/session` fallisce.

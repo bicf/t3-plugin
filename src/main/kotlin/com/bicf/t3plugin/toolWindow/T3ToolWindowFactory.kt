@@ -30,6 +30,11 @@ class T3ToolWindowFactory : ToolWindowFactory, DumbAware {
         toolWindow.contentManager.addContent(content)
     }
 
+    companion object {
+        /** Id of the tool window in plugin.xml. */
+        const val ID = "T3 Code"
+    }
+
     private class ReconnectAction(private val panel: T3BrowserPanel) :
         DumbAwareAction(T3Bundle.messagePointer("action.reconnect.text"), AllIcons.Actions.Refresh) {
 

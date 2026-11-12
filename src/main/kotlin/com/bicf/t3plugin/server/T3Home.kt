@@ -13,6 +13,10 @@ data class T3Home(val dir: Path) {
     val runtimeFile: Path
         get() = dir.resolve("userdata").resolve("server-runtime.json")
 
+    /** The file with the id of this T3 environment. The web UI uses the id in thread routes. */
+    val environmentIdFile: Path
+        get() = dir.resolve("userdata").resolve("environment-id")
+
     companion object {
         const val HOME_ENV = "T3CODE_HOME"
 

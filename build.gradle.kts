@@ -1,3 +1,4 @@
+import org.jetbrains.intellij.platform.gradle.IntelliJPlatformType
 import org.jetbrains.intellij.platform.gradle.TestFrameworkType
 
 plugins {
@@ -19,5 +20,15 @@ dependencies {
 
         testFramework(TestFrameworkType.Platform)
         testBundledPlugins("com.intellij.modules.ultimate")
+    }
+}
+
+intellijPlatformTesting {
+    runIde {
+        // `./gradlew runPyCharm`: the plugin in PyCharm, the second IDE of the phase 2 exit criterion.
+        register("runPyCharm") {
+            type = IntelliJPlatformType.PyCharm
+            version = "2026.2.4"
+        }
     }
 }

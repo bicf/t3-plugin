@@ -7,11 +7,14 @@ package com.bicf.t3plugin
 class T3Exception(val reason: Reason, message: String, cause: Throwable? = null) : Exception(message, cause) {
 
     enum class Reason {
-        /** The `t3` command is not in `<home>/bin`, `~/.t3/bin` or `PATH`. */
+        /** The `t3` command is not in Settings, `<home>/bin`, `~/.t3/bin` or `PATH`. */
         CLI_NOT_FOUND,
 
         /** The operating system did not start the `t3` command. */
         CLI_START_FAILED,
+
+        /** No local server answers, and automatic start is off in Settings. */
+        SERVER_NOT_RUNNING,
 
         /** `t3 serve` stopped before a server answered. */
         SERVER_EXITED,
@@ -27,5 +30,11 @@ class T3Exception(val reason: Reason, message: String, cause: Throwable? = null)
 
         /** `t3 auth pairing create --json` printed no usable pairing link. */
         PAIRING_BAD_OUTPUT,
+
+        /** `t3 project add` stopped with an error other than `ProjectAlreadyExistsError`. */
+        PROJECT_ADD_FAILED,
+
+        /** `t3 thread start` or `t3 thread send` stopped with an error, or printed no thread id. */
+        THREAD_FAILED,
     }
 }

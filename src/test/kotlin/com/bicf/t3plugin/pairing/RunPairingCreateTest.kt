@@ -39,7 +39,7 @@ class RunPairingCreateTest {
         val argsFile = tmp.root.toPath().resolve("args.txt")
         val cli = fakeCli(
             """
-            printf '%s\n' "${'$'}@" > '$argsFile'
+            printf '%s\n' "${'$'}T3CODE_HOME" "${'$'}@" > '$argsFile'
             printf '{"pairUrl":"http://127.0.0.1:3773/pair#token=fake","expiresAt":"2026-11-11T20:02:00.000Z"}'
             """.trimIndent(),
         )
@@ -49,8 +49,8 @@ class RunPairingCreateTest {
         assertEquals("http://127.0.0.1:3773/pair#token=fake", link.url)
         assertEquals(
             listOf(
-                "auth", "pairing", "create", "--json", "--ttl", "2m", "--label", "JetBrains IDE - demo",
-                "--base-url", origin, "--base-dir", cli.home.dir.toString(),
+                cli.home.dir.toString(),
+                "auth", "pairing", "create", "--json", "--ttl", "2m", "--label", "JetBrains IDE - demo", "--base-url", origin,
             ),
             Files.readAllLines(argsFile),
         )

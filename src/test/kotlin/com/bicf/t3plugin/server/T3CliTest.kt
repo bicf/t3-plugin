@@ -53,11 +53,42 @@ class T3CliTest {
     }
 
     @Test
-    fun `every command gets the base dir of the home`() {
+    fun `every command gets the home in T3CODE_HOME and no extra argument`() {
         val cli = T3Cli(Path.of("/opt/t3"), T3Home(Path.of("/data/t3")), workingDirectory = root)
-        assertEquals(
-            listOf("/opt/t3", "auth", "pairing", "create", "--base-dir", "/data/t3"),
-            cli.command("auth", "pairing", "create").getCommandLineList(null),
-        )
+        val command = cli.command("project", "add", "/work/demo")
+        assertEquals(listOf("/opt/t3", "project", "add", "/work/demo"), command.getCommandLineList(null))
+        assertEquals("/data/t3", command.environment["T3CODE_HOME"])
+    }
+
+    @Test
+    fun `a configured path wins over the search`() {
+        val configured = script(root.resolve("custom/t3"))
+        script(home.dir.resolve("bin/t3"))
+        assertEquals(configured, T3Cli.locate(home, userHome, isWindows = false, configured = configured) { null })
+    }
+
+    @Test
+    fun `a configured path that does not exist gives no command and no fallback`() {
+        script(home.dir.resolve("bin/t3"))
+        assertNull(T3Cli.locate(home, userHome, isWindows = false, configured = root.resolve("missing/t3")) { null })
+    }
+
+    @Test
+    fun `run writes stdin and reads stdout`() {
+        assumeFalse("The fake CLI is a POSIX shell script.", SystemInfo.isWindows)
+        val cli = FakeCli.create(root, "cat")
+        val result = cli.run(java.time.Duration.ofSeconds(10), listOf("thread", "send", "id", "-"), stdin = "line 1\nline 2")
+        assertEquals(0, result.exitCode)
+        assertEquals("line 1\nline 2", result.stdout)
+    }
+
+    @Test
+    fun `finds the first executable in PATH`() {
+        assumeFalse("Windows ignores the executable flag.", SystemInfo.isWindows)
+        script(root.resolve("a/t3"), executable = false)
+        val second = script(root.resolve("b/t3"))
+        val path = listOf(root.resolve("missing"), root.resolve("a"), root.resolve("b")).joinToString(java.io.File.pathSeparator)
+        assertEquals(second, T3Cli.findInPath(path, "t3"))
+        assertNull(T3Cli.findInPath(null, "t3"))
     }
 }

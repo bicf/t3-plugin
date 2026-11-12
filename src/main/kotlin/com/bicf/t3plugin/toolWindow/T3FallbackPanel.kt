@@ -4,6 +4,7 @@ import com.bicf.t3plugin.T3Bundle
 import com.bicf.t3plugin.T3Exception
 import com.bicf.t3plugin.pairing.T3PairingService
 import com.bicf.t3plugin.server.T3ServerService
+import com.bicf.t3plugin.settings.T3Settings
 import com.intellij.ide.BrowserUtil
 import com.intellij.openapi.application.EDT
 import com.intellij.openapi.components.service
@@ -32,12 +33,18 @@ internal class T3FallbackPanel(private val project: Project) {
     }
 
     private fun openInBrowser() {
+        // A remote server pairs in the browser itself: the CLI cannot reach it.
+        T3Settings.getInstance().remoteOrigin?.let {
+            BrowserUtil.browse(it)
+            return
+        }
         status.show(T3Bundle["toolWindow.connecting"])
         project.service<T3ProjectScope>().coroutineScope.launch(Dispatchers.EDT) {
             try {
                 val link = runInterruptible(Dispatchers.IO) {
                     val runtime = service<T3ServerService>().ensureServer()
-                    service<T3PairingService>().createPairingLink(runtime, T3PairingService.labelFor(project.name))
+                    // Own label: a new click revokes only the session of the previous click, not a JCEF session.
+                    service<T3PairingService>().createPairingLink(runtime.origin, T3PairingService.sessionLabel() + " – system browser")
                 }
                 BrowserUtil.browse(link.url)
                 showIntro()
