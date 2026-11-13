@@ -283,7 +283,23 @@ Problemi trovati e risolti durante le prove:
 5. Il menu "Add panel surface" ha `aria-labelledby`, non `aria-label`.
 6. Il router scrive `mcp%3A…`: `T3Routes.threadRoute` decodifica il segmento.
 
-Not verified a runtime: "Ask T3 About Selection…" con le tab, i link `file:`, "Open in …" su un file, "Changes vs <ref>" con un upstream, un worktree T3 fuori dal progetto IDE, PyCharm, il server remoto.
+Altre prove (2026-11-13), stesso metodo, versione 0.1.0:
+
+| Prova | IDE | Risultato |
+|---|---|---|
+| "Ask T3 About Selection…" con una tab T3 aperta, selezione `Main.kt` riga 2 | IU 2026.2.3 | `t3 thread send` al thread della tab (messaggio con `Main.kt:2`); la tab torna in primo piano. |
+| "Ask T3 About Selection…" senza tab T3 | IU 2026.2.3 | `t3 thread start`: thread nuovo in una tab nuova, con il titolo del thread. |
+| "Changes vs origin/main" (branch `feature` con un commit, remoto `origin` locale) | IU 2026.2.3 | Tab "Changes Between origin/main and Current Working Tree" nel tool window VCS. |
+| Apertura del progetto, clic su un thread nella lista | PyCharm 2026.2.4 | Thread più recente in una tab; il clic apre una tab nuova e il tool window torna su `/draft/…`. |
+| Link `Main.kt:2`, "Open diff", "Toggle terminal drawer" | PyCharm 2026.2.4 | `Main.kt` alla riga 2; tab "Diff" con `Main.kt`; terminale "T3: demo". |
+| "Commit", "Changes Uncommitted", selettore di branch | PyCharm 2026.2.4 | Tool window "Commit"; "Changes Between HEAD and Current Working Tree"; popup `GitDefaultBranchesPopup`. |
+
+Fatti:
+- Su un branch con commit davanti al remoto, T3 mostra "Push & create PR" al posto di "Commit". Il bridge non intercetta questo pulsante: T3 esegue l'azione.
+- Senza `defaultModelSelection` nei settings T3, "Ask T3 About Selection…" senza tab mostra la notifica di errore (sezione "Limiti noti").
+
+Not verified a runtime: i link `file:`, "Open in …" su un file, un worktree T3 fuori dal progetto IDE, il server remoto,
+in PyCharm "Ask T3 About Selection…", la superficie "Files" e "Open in …".
 
 ### Fase 4 – Qualità e CI
 
