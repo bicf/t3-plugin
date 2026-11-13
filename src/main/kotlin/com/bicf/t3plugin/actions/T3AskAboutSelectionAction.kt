@@ -2,11 +2,14 @@ package com.bicf.t3plugin.actions
 
 import com.bicf.t3plugin.T3Bundle
 import com.bicf.t3plugin.T3Exception
+import com.bicf.t3plugin.editor.T3ThreadTabs
+import com.bicf.t3plugin.project.T3ProjectBinder
 import com.bicf.t3plugin.project.T3Threads
 import com.bicf.t3plugin.server.T3Cli
 import com.bicf.t3plugin.server.T3Home
 import com.bicf.t3plugin.settings.T3Settings
 import com.bicf.t3plugin.toolWindow.T3ProjectScope
+import com.bicf.t3plugin.toolWindow.T3Routes
 import com.bicf.t3plugin.toolWindow.T3ToolWindowFactory
 import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
@@ -28,8 +31,10 @@ import java.nio.file.Path
  * Editor action "Ask T3 About Selection".
  *
  * Rules:
- * - When the "T3 Code" tool window shows a thread, the action sends the message to that thread (`t3 thread send`).
- * - Otherwise the action starts a new thread in the project (`t3 thread start`) and shows it.
+ * - With editor tabs (Settings), the action sends the message to the thread of the last selected T3 tab that is still
+ *   open (`t3 thread send`). Without editor tabs, it sends it to the thread on screen in the "T3 Code" tool window.
+ * - Otherwise the action starts a new thread in the project (`t3 thread start`).
+ * - The action then shows the thread: in its editor tab, or in the tool window without editor tabs.
  * - The message has the question, `<path>:<lines>` and the selected code. The path is relative to the project root.
  * - The action works only with the local server: the CLI cannot reach a remote server.
  */
@@ -62,20 +67,28 @@ class T3AskAboutSelectionAction : DumbAwareAction() {
         val message = T3SelectionMessage.build(question, relativePath, startLine, endLine, file?.extension.orEmpty(), code)
 
         val scope = project.service<T3ProjectScope>()
-        val openThreadId = scope.browserPanel?.currentThreadId()
+        val inTabs = T3Settings.getInstance().openThreadsInEditor
+        val openThreadId = if (inTabs) project.service<T3ThreadTabs>().lastThreadId() else scope.browserPanel?.currentThreadId()
         scope.coroutineScope.launch(Dispatchers.EDT) {
             try {
-                val threadId = runInterruptible(Dispatchers.IO) {
-                    val cli = T3Cli.require(T3Home.detect())
-                    if (openThreadId != null) {
+                val (threadId, environmentId) = runInterruptible(Dispatchers.IO) {
+                    val home = T3Home.detect()
+                    val cli = T3Cli.require(home)
+                    val id = if (openThreadId != null) {
                         T3Threads.send(cli, openThreadId, message)
                         openThreadId
                     } else {
                         T3Threads.start(cli, basePath, message)
                     }
+                    id to T3ProjectBinder.environmentId(home)
                 }
-                ToolWindowManager.getInstance(project).getToolWindow(T3ToolWindowFactory.ID)?.activate {
-                    project.service<T3ProjectScope>().browserPanel?.openThread(threadId)
+                val route = environmentId?.let { T3Routes.threadPath(it, threadId) }?.let(T3Routes::threadRoute)
+                if (inTabs && route != null) {
+                    project.service<T3ThreadTabs>().open(route)
+                } else {
+                    ToolWindowManager.getInstance(project).getToolWindow(T3ToolWindowFactory.ID)?.activate {
+                        project.service<T3ProjectScope>().browserPanel?.openThread(threadId)
+                    }
                 }
             } catch (error: T3Exception) {
                 NotificationGroupManager.getInstance().getNotificationGroup(NOTIFICATION_GROUP)

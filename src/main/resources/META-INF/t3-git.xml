@@ -1,0 +1,7 @@
+<!-- Loaded only when the IDE has the Git plugin: T3 Git actions open the IDE Git tools. -->
+<idea-plugin>
+    <extensions defaultExtensionNs="com.intellij">
+        <projectService serviceInterface="com.bicf.t3plugin.ide.T3GitSupport"
+                        serviceImplementation="com.bicf.t3plugin.ide.git.T3GitSupportImpl"/>
+    </extensions>
+</idea-plugin>

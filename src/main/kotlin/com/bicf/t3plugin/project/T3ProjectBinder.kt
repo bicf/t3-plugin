@@ -22,8 +22,11 @@ import java.time.Duration
  */
 object T3ProjectBinder {
 
-    /** Result of a binding: the path to open on the server, and the environment id for thread routes. */
-    data class Binding(val path: String, val environmentId: String?)
+    /**
+     * Result of a binding: the path to open on the server, the environment id for thread routes,
+     * and the newest thread of the project (the thread of [path], or null when [path] is `/`).
+     */
+    data class Binding(val path: String, val environmentId: String?, val threadId: String? = null)
 
     /** Blocks for up to 2 CLI calls. Throws [T3Exception] only when `t3 project add` fails. */
     fun bind(cli: T3Cli, projectPath: String, timeout: Duration = Duration.ofSeconds(60)): Binding {
@@ -38,7 +41,7 @@ object T3ProjectBinder {
         val list = cli.run(timeout, "thread", "list", "--project", projectPath, "--json")
         val threadId = if (list.exitCode == 0) newestThreadId(list.stdout) else null
         val path = if (environmentId != null && threadId != null) T3Routes.threadPath(environmentId, threadId) else null
-        return Binding(path ?: "/", environmentId)
+        return Binding(path ?: "/", environmentId, threadId.takeIf { path != null })
     }
 
     internal fun isAddedOrExisting(result: T3Cli.Result): Boolean =

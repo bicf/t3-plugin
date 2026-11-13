@@ -44,7 +44,7 @@ class T3ProjectAndThreadsTest {
     @Test
     fun `opens the newest thread of a new project`() {
         val cli = projectCli(addExit = 0, threads = """[{"threadId":"newest"},{"threadId":"older"}]""")
-        assertEquals(T3ProjectBinder.Binding("/$env/newest", env), T3ProjectBinder.bind(cli, "/work/demo"))
+        assertEquals(T3ProjectBinder.Binding("/$env/newest", env, "newest"), T3ProjectBinder.bind(cli, "/work/demo"))
     }
 
     @Test

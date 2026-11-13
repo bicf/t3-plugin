@@ -23,6 +23,12 @@ class T3Settings : SimplePersistentStateComponent<T3Settings.State>(State()) {
 
         /** Start `t3 serve --no-browser` when no local server answers. */
         var autoStartServer by property(true)
+
+        /** Open each conversation in an editor tab. Off: the tool window shows the conversations. */
+        var openThreadsInEditor by property(true)
+
+        /** Use the IDE editor, diff viewer, terminal and Git instead of the T3 panels, when the IDE has them. */
+        var useIdeTools by property(true)
     }
 
     /** The configured `t3` command, or null when the plugin searches for it. */
@@ -35,6 +41,12 @@ class T3Settings : SimplePersistentStateComponent<T3Settings.State>(State()) {
 
     val autoStartServer: Boolean
         get() = state.autoStartServer
+
+    val openThreadsInEditor: Boolean
+        get() = state.openThreadsInEditor
+
+    val useIdeTools: Boolean
+        get() = state.useIdeTools
 
     companion object {
         fun getInstance(): T3Settings = service()

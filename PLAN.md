@@ -1,6 +1,7 @@
 # Piano: plugin JetBrains che ospita T3 Code
 
-Il plugin mostra la web UI di T3 Code in un tool window con browser JCEF.
+Il plugin mostra la web UI di T3 Code con browser JCEF: la lista dei thread nel tool window, ogni conversazione in una tab editor.
+Dove l'IDE ha lo strumento, file, diff, terminale e Git di T3 usano l'IDE.
 Il server T3 resta un processo esterno. Il plugin non riscrive la UI di T3.
 
 ## Decisioni
@@ -47,9 +48,15 @@ IDE JetBrains
 | `T3ServerService` | applicazione | Trova il server (`server-runtime.json`, `T3CODE_HOME`). Controlla `pid` e porta. Se il server manca, avvia `t3 serve --no-browser`. Con exit 78 (`ServerAlreadyRunningError`), rilegge `server-runtime.json`. Scarta l'output di `t3 serve`, perché contiene un token. Alla chiusura dell'IDE, ferma solo il server che ha avviato. |
 | `T3PairingService` | applicazione | Esegue `t3 auth pairing create --json` e restituisce il link `/pair#token=...`. Accetta solo un link sull'origin del server. Non scrive mai il link o lo stdout nei messaggi di errore. |
 | `T3ProjectBinder` | progetto | Esegue `t3 project add <basePath>`. Tratta `ProjectAlreadyExistsError` (exit 1) come successo. Apre il thread più recente (`/$environmentId/$threadId`), oppure `/`. |
-| `T3ThemeSync` | progetto | Scrive `light` o `dark` in localStorage (`t3code:theme-appearance-mode`) e invia un evento `storage`: la pagina cambia tema senza ricaricarsi. Gira a ogni caricamento e a ogni `LafManagerListener.lookAndFeelChanged`. |
+| `T3ThemeSync` + `T3IdePalette` | progetto | Crea in localStorage il tema T3 `jetbrains-ide` (`t3code:themes:v1`) con i colori dell'IDE, lo seleziona (`t3code:theme`, `t3code:theme-appearance-mode`), rimuove `t3code:theme-halves:v1` e invia un evento `storage` per chiave: la pagina cambia colori senza ricaricarsi. Gira a ogni caricamento, a ogni `LafManagerListener.lookAndFeelChanged` e a ogni cambio di schema colori dell'editor. Lo sfondo dell'editor va su composer, codice e terminale solo se editor e IDE sono entrambi chiari o entrambi scuri. |
+| `T3ClipboardBridge` | browser | Copia: `navigator.clipboard.writeText`, `write` (parte `text/plain`), Ctrl+C e Taglia vanno al plugin, che scrive negli appunti dell'IDE (`CopyPasteManager`). Paste: lo script annulla l'evento `paste` nativo, chiede al plugin gli appunti dell'IDE (testo o immagine PNG) e invia un nuovo evento `paste` allo stesso elemento. Il paste col tasto centrale (selezione primaria X11) resta nativo. Motivo: su Wayland l'IDE scrive negli appunti Wayland, ma Chromium gira su XWayland e legge gli appunti X11, che il desktop aggiorna solo per una finestra X11 con il focus. |
+| `T3SidebarResize` | browser | Sotto i 768 px T3 mostra la sidebar come pannello sovrapposto largo quasi tutta la pagina, senza resize. Lo script aggiunge un bordo trascinabile di 6 px (minimo 200 px), salva la larghezza in `t3plugin:mobile-sidebar-width` e la ripristina con un doppio clic. |
+| Focus di Chromium (pannello) | browser | A ogni pressione del mouse nella pagina, e a ogni caricamento con il browser già a fuoco, il pannello chiama `CefBrowser.setFocus(true)`. Motivo: `JBCefBrowser` dà il focus a Chromium solo a un cambio di focus Swing; senza focus Chromium non mostra il cursore di testo. |
 | `T3LinkHandler` (`T3LinkPolicy` + handler del pannello) | browser | Apre nel browser di sistema gli URL esterni all'origin T3. Navigazioni: `onBeforeBrowse`. Popup e link `target="_blank"`: un ponte JavaScript nella pagina, perché con JCEF out-of-process `onBeforePopup` non arriva al plugin. |
-| `T3Settings` | applicazione | Settings → Tools → T3 Code: percorso della CLI, URL di un server remoto, avvio automatico del server. |
+| `T3ThreadTabs` + `T3ThreadEditorProvider` | progetto | Ogni conversazione è una tab editor (`T3ThreadFile`, file solo in memoria) con un proprio `T3BrowserPanel` sul thread. Una tab per thread; il titolo della tab è il titolo del thread nella pagina. L'IDE non riapre le tab dopo un riavvio. |
+| `T3RouteWatch` | browser | Ogni 250 ms legge `location.pathname` e il titolo del thread (`Thread actions for <titolo>`). Tool window: un thread scelto si apre in una tab, e il tool window torna alla home con il link "T3 Code home". Tab: un altro thread si apre nella sua tab, e la tab torna al suo thread (`history.back()`). Il router scrive `mcp:…` come `mcp%3A…`. |
+| `T3IdeBridge` + `T3IdeTools` | browser + progetto | Strumenti T3 → strumenti IDE (dettagli nella sezione "Strumenti IDE"). Lo script entra a `onLoadStart`, prima degli script della pagina. |
+| `T3Settings` | applicazione | Settings → Tools → T3 Code: percorso della CLI, URL di un server remoto, avvio automatico del server, conversazioni in tab editor, strumenti IDE. |
 | `T3AskAboutSelectionAction` | editor | "Ask T3 About Selection…": `t3 thread send` al thread aperto, oppure `t3 thread start` nel progetto. |
 | `T3StatusWidgetFactory` | progetto | Widget della status bar: `T3: running`, `stopped`, `error`, `remote`. Un controllo ogni 10 s. |
 
@@ -61,7 +68,34 @@ Flusso all'apertura del tool window:
 5. `T3PairingService` revoca le sessioni con la stessa label, poi crea un token con TTL di 2 minuti e label `JetBrains <IDE> (<hash>)`.
    L'hash viene dalla cartella system dell'IDE: tutti i progetti di un IDE usano lo stesso archivio di cookie JCEF.
 6. `JBCefBrowser` carica il link `/pair#token=...`. La web UI scambia il token con un cookie di sessione valido 30 giorni.
-7. `T3ProjectBinder` registra la root del progetto e apre il thread più recente del progetto, oppure `/`.
+7. `T3ProjectBinder` registra la root del progetto. Con le tab editor, il tool window apre `/` e il thread più recente del progetto in una tab (se nessuna tab T3 è aperta). Senza tab editor, il tool window apre il thread più recente, oppure `/`.
+
+## Strumenti IDE
+
+Fatti verificati su T3 0.1.9 (DevTools sulla web UI):
+- Il client parla con il server in Effect RPC su `/ws`, in JSON senza framing. Richiesta: `{"_tag":"Request","id":<numero>,"tag":"…","payload":{…},"headers":[]}`. Risposta: `{"_tag":"Exit","requestId":<id>,"exit":{"_tag":"Success","value":…}}`.
+- Con `frameParts=1`, un frame che inizia con U+001E è una parte di un messaggio lungo; il frame senza U+001E chiude il messaggio.
+- Il client tiene la funzione `send` del socket alla creazione: un patch di `WebSocket.prototype.send` dopo il caricamento non vede nessun messaggio.
+- Una risposta `Exit/Success` sintetica a `shell.openInEditor` chiude la richiesta senza errori nella UI.
+- Il client ignora un `Exit` con un `requestId` che non conosce.
+
+| Strumento T3 | Intercettazione | Strumento IDE | Senza lo strumento IDE |
+|---|---|---|---|
+| Link a file nella chat (`data-markdown-copy`, `file:`), con `:riga[:colonna]` o `#L…` | clic | Editor, alla riga | T3 apre il file nel pannello "Files" |
+| "Open in …" (`shell.openInEditor`, non `file-manager`) | RPC; risposta `Exit/Success` sintetica | Editor (file) o Project view (cartella del progetto) | la richiesta va al server |
+| "Open diff" e righe file del riquadro "changed files" | clic; turno da `turnSummary.checkpointTurnCount` nelle props React | `orchestration.getTurnDiff` (turno n-1 → n) sul socket di T3, con id da 1 000 000 001; diff viewer (`PatchDiffRequest`) | T3 apre il pannello "Diff" |
+| "Toggle terminal drawer" (chiuso), superficie "Terminal" | clic | Terminale IDE nella cartella del thread (`cwd` dell'ultimo `subscribeVcsStatus`) | terminale T3 |
+| Superficie "Files" | clic | Project view sulla cartella del thread | pannello "Files" di T3 |
+| Selettore di branch (regione "Version Control") | `pointerdown` | Popup "Branches" di Git | lista di T3 |
+| "Changes vs <ref>" / "Changes Uncommitted" | clic | `GitBrancher.showDiffWithLocal(<ref> o HEAD)` | pannello di T3 |
+| Pulsante che inizia con "Commit" | clic | Azione "Commit…" (`CheckinProject`) | dialog di T3 |
+
+Regole:
+- Terminale e Git solo con i plugin Terminal e Git dell'IDE (`<depends optional>`), e Git solo per un repository registrato nell'IDE.
+- Server remoto: solo il diff usa l'IDE; file, terminale e Git restano a T3.
+- Un'azione dell'IDE con il componente della pagina non visibile (tab in secondo piano) usa il frame dell'IDE come contesto.
+- `window.__t3IdeLog` tiene gli ultimi 50 eventi del bridge (tag ed esiti, mai contenuti).
+- Settings → "Use the IDE tools in T3" spegne tutto il bridge.
 
 ## Limiti noti
 
@@ -89,13 +123,19 @@ Il tool window mostra allora "Embedded Browser is suspended" con il pulsante "En
 Il plugin non può risolvere questo limite: dipende dal sistema. Il `runIde` della sandbox lo mostra sempre, perché l'IDE gira dalla cache di Gradle.
 Per i test, la sandbox usa `ide.browser.jcef.sandbox.enable=false`.
 
+### "Ask T3 About Selection…" richiede un modello di default in T3
+
+`t3 thread start` non ha un modello se i settings T3 non hanno `defaultModelSelection`.
+In questo caso l'azione mostra la notifica "T3 did not receive the selection. … Pass modelSelection: the project has no default model."
+L'utente sceglie un modello di default nelle impostazioni di T3. Il plugin non sceglie un modello al posto dell'utente.
+
 ### Avvisi del Plugin Verifier
 
 `./gradlew verifyPlugin` dà "Compatible" e 0 errori su IU-262.11879.100 e IU-263.7307.200 (2026-11-12). Il plugin mantiene questi avvisi:
 
 | Avviso | 262 | 263 | Causa |
 |---|---|---|---|
-| API deprecate | 6 | 7 | Kotlin genera metodi bridge per `isApplicable` e `isDoNotActivateOnStart` di `ToolWindowFactory`, e per `getPresentation(PlatformType)` di `StatusBarWidget`. Su 263 si aggiunge il costruttore `DynamicBundle(String)` in `T3Bundle`. |
+| API deprecate | 7 | 8 | Kotlin genera metodi bridge per `isApplicable` e `isDoNotActivateOnStart` di `ToolWindowFactory`, e per `getPresentation(PlatformType)` di `StatusBarWidget`. Su 263 si aggiunge il costruttore `DynamicBundle(String)` in `T3Bundle`. Su entrambe: `TerminalToolWindowManager.createShellWidget` in `T3TerminalSupportImpl` (l'API nuova, `TerminalToolWindowTabsManager`, è sperimentale e sta in un modulo di contenuto del plugin Terminal). |
 | API sperimentali | 6 | 6 | Kotlin genera metodi bridge in `T3ToolWindowFactory` per `getAnchor`, `getIcon` e `manage` di `ToolWindowFactory`. |
 
 Il plugin non usa API "scheduled for removal". La ricerca della CLI in `PATH` non usa `PathEnvironmentVariableUtil.findInPath`, deprecato in 263.
@@ -163,8 +203,47 @@ Stato (2026-11-11):
   | Server fermo, avvio automatico spento | IU 2026.2.3 | "T3 Code is not available. No T3 server answers, and automatic start is off…" con "Retry". Widget: `T3: error`. |
   | JCEF spento | IU 2026.2.3 | `T3FallbackPanel` con "Open T3 Code in Browser". |
 
-- Not verified a runtime (servono clic o aprono il tuo browser): link esterni nel browser di sistema, il pulsante del fallback,
-  il cambio di tema dell'IDE dal vivo, "Ask T3 About Selection" con un agente reale, il server remoto con un link incollato.
+- Verifica delle azioni dell'utente (2026-11-12), IU 2026.2.3, home T3 di prova sulla porta 3898.
+  Metodo: nessun clic manuale possibile. Un clic vero di DevTools (`Input.dispatchMouseEvent`) e uno script Groovy della sandbox sostituiscono l'utente.
+  Il "browser di sistema" della sandbox è uno script che scrive solo l'URL.
+
+  | Prova | Risultato |
+  |---|---|
+  | Clic su "View policy" in Settings → About di T3 (`https://t3.codes/privacy-policy`, `target="_blank"`) | L'URL va al browser di sistema. Il pannello resta su `/settings/about`, nessuna finestra JCEF nuova. |
+  | Navigazione della pagina verso `https://example.com/…` | L'URL va al browser di sistema (`onBeforeBrowse`). Il pannello resta su T3. |
+  | Tema dell'IDE: "IntelliJ Light", poi "Dark" (`LafManager`) | La pagina passa a `light`, poi a `dark`, senza ricaricarsi. |
+  | "Ask T3 About Selection…" con il pannello su un thread | `t3 thread send` allo stesso thread: 2 messaggi utente, nessun thread nuovo. |
+  | "Ask T3 About Selection…" con il pannello sulla bozza | `t3 thread start`: thread nuovo con domanda, `README.md:1` e codice; risposta "pong"; il pannello apre il thread. |
+
+  Problemi trovati e risolti:
+  1. Un thread avviato dalla CLI ha un id come `mcp:1c760312-…`. `T3Routes` non accettava `:`, quindi il pannello e il binder non aprivano questi thread.
+     Ora un segmento accetta `[A-Za-z0-9_.:-]`, ma non `.` e `..`.
+  2. Su una home T3 nuova, `t3 thread start` esce con "Pass modelSelection: the project has no default model.", e l'azione mostra questo errore in una notifica.
+     Il server usa `defaultModelSelection` dei settings T3 (la home dell'app desktop ce l'ha). Per la prova, la home di prova ha `claudeAgent` / `claude-haiku-5-5`.
+
+- Correzioni del 2026-11-12 (colori, appunti, cursore), IU 2026.2.3 su Wayland (`WLToolkit`), home T3 di prova sulla porta 3898.
+  Metodo: DevTools sulla porta 9223 e uno script Groovy della sandbox, che invia eventi del mouse Swing al componente JCEF.
+
+  | Prova | Risultato |
+  |---|---|
+  | Tema "Dark" (Islands) | `data-theme-id="jetbrains-ide"`, sfondo `#2b2d30`, testo `#dfe1e5`, accento `#3574f0` (prima: nero T3 `#0a0a0a`). |
+  | Tema "IntelliJ Light" con schema editor scuro (sandbox) | Sfondo `#ffffff`, composer `#f2f2f2`, testo `#000000`; codice e terminale con i colori T3 chiari. |
+  | `navigator.clipboard.writeText` e `write` (`text/plain` + `text/html`) | Promise risolta; i 2 testi compaiono negli appunti di sistema (cronologia Klipper). Il metodo nativo JCEF: "Document is not focused", oppure nessuna risposta in 10 s. |
+  | Clic Swing sul composer, Chromium senza focus | Con il listener del pannello: `document.hasFocus()` vero e cursore visibile (screenshot). Senza il listener: falso. |
+  | Pairing completato senza ricaricare la pagina | Ora il pannello installa anche i ponte link e appunti (prima applicava solo il tema). |
+
+- Correzioni della versione 0.0.3 (2026-11-12), stessa sandbox e stesso metodo, con eventi da tastiera DevTools (`Ctrl+V` e `Ctrl+C` con i comandi `paste` e `copy`).
+
+  | Prova | Risultato |
+  |---|---|
+  | Appunti IDE `t3-paste-from-ide-1`, appunti X11 con un altro testo, `Ctrl+V` nel composer | Il composer riceve `t3-paste-from-ide-1` (prima: il testo X11). |
+  | Testo su 2 righe, poi `navigator.clipboard.readText()` | 2 righe nel composer; `readText` restituisce `riga A\nriga B`. |
+  | Immagine 40×30 negli appunti IDE, `Ctrl+V` nel composer | Il composer mostra un allegato immagine 40×30. |
+  | Selezione nella pagina, `Ctrl+C` | Gli appunti IDE contengono il testo selezionato. |
+  | Sidebar sovrapposta (pagina di 461 px): trascinamento del bordo da 449 a 280 px | Larghezza 280 px, salvata; uguale dopo chiusura e riapertura. Doppio clic: di nuovo 449 px. |
+
+- Not verified a runtime: il pulsante del fallback (aprirebbe il browser), il server remoto con un link incollato,
+  il clic di un utente reale con la finestra dell'IDE attiva (Wayland non dà il focus alla sandbox avviata da script).
 - Criterio di uscita della fase 2: raggiunto su Linux per IntelliJ IDEA e PyCharm, con la home T3 isolata.
 
 ### Fase 3 – Integrazione con l'IDE
@@ -176,6 +255,51 @@ Stato (2026-11-11):
 
 Stato (2026-11-12): l'azione editor, il widget, il server remoto e il tema dal vivo sono implementati, con test unitari.
 L'azione e il server remoto sono not verified a runtime.
+
+Stato (2026-11-13): conversazioni in tab editor e strumenti IDE (sezioni "Architettura" e "Strumenti IDE").
+`./gradlew test`: 86 test, 0 errori, 1 saltato. `verifyPlugin`: "Compatible" su IU-262.12573.28 e IU-263.7307.200.
+Prove con `runIde` (IU 2026.2.3), home T3 isolata sulla porta 3898, progetto demo con Git, clic veri di DevTools (porta 9223) e controlli con uno script Groovy della sandbox:
+
+| Prova | Risultato |
+|---|---|
+| Apertura del tool window | Tool window su `/draft/…`; il thread più recente in una tab con il titolo del thread. |
+| Clic su un thread nella lista del tool window | Tab nuova selezionata; il tool window torna su `/draft/…`. |
+| Clic su un altro thread nella sidebar di una tab | Selezionata la tab esistente (sempre 2 tab); la prima tab torna al suo thread. |
+| Link `Main.kt · L2` nella chat | `Main.kt` nell'editor, cursore alla riga 2; nessun pannello "Files" di T3. |
+| "Open in VS Code" | Project view sulla cartella `demo`; VS Code non parte; nessun errore in T3. |
+| "Open diff" del turno 1, riga `Main.kt +1 -1` | Tab "Diff" dell'IDE: `PatchDiffRequest` di `Main.kt`, "Before turn 1 / After turn 1"; nessun pannello "Diff" di T3. |
+| "Open diff" del turno 2 | 5 file `.idea/…` nel diff dell'IDE, "Before turn 2 / After turn 2". |
+| "Toggle terminal drawer", superficie "Terminal" | Tab "T3: demo" nel terminale dell'IDE; il drawer di T3 resta chiuso. |
+| Superficie "Files" | Project view visibile, cartella `demo` selezionata. |
+| Selettore di branch | Popup `GitBranchesPopupBase` dell'IDE; nessuna lista di T3. |
+| "Changes Uncommitted" | Tab "Changes Between HEAD and Current Working Tree" nel tool window VCS. |
+| "Commit" | Tool window "Commit" visibile. |
+
+Problemi trovati e risolti durante le prove:
+1. Il patch di `WebSocket.prototype.send` dopo il caricamento non vedeva messaggi: ora lo script entra a `onLoadStart`.
+2. Il diff via la risposta di T3 falliva quando T3 aveva il diff in cache: ora il bridge chiede il diff da solo.
+3. Il selettore di branch si apre su `pointerdown`: ora il bridge intercetta `pointerdown`.
+4. Le azioni Git non partivano con la tab T3 in secondo piano ("target component is not showing"): ora il contesto è il frame dell'IDE.
+5. Il menu "Add panel surface" ha `aria-labelledby`, non `aria-label`.
+6. Il router scrive `mcp%3A…`: `T3Routes.threadRoute` decodifica il segmento.
+
+Altre prove (2026-11-13), stesso metodo, versione 0.1.0:
+
+| Prova | IDE | Risultato |
+|---|---|---|
+| "Ask T3 About Selection…" con una tab T3 aperta, selezione `Main.kt` riga 2 | IU 2026.2.3 | `t3 thread send` al thread della tab (messaggio con `Main.kt:2`); la tab torna in primo piano. |
+| "Ask T3 About Selection…" senza tab T3 | IU 2026.2.3 | `t3 thread start`: thread nuovo in una tab nuova, con il titolo del thread. |
+| "Changes vs origin/main" (branch `feature` con un commit, remoto `origin` locale) | IU 2026.2.3 | Tab "Changes Between origin/main and Current Working Tree" nel tool window VCS. |
+| Apertura del progetto, clic su un thread nella lista | PyCharm 2026.2.4 | Thread più recente in una tab; il clic apre una tab nuova e il tool window torna su `/draft/…`. |
+| Link `Main.kt:2`, "Open diff", "Toggle terminal drawer" | PyCharm 2026.2.4 | `Main.kt` alla riga 2; tab "Diff" con `Main.kt`; terminale "T3: demo". |
+| "Commit", "Changes Uncommitted", selettore di branch | PyCharm 2026.2.4 | Tool window "Commit"; "Changes Between HEAD and Current Working Tree"; popup `GitDefaultBranchesPopup`. |
+
+Fatti:
+- Su un branch con commit davanti al remoto, T3 mostra "Push & create PR" al posto di "Commit". Il bridge non intercetta questo pulsante: T3 esegue l'azione.
+- Senza `defaultModelSelection` nei settings T3, "Ask T3 About Selection…" senza tab mostra la notifica di errore (sezione "Limiti noti").
+
+Not verified a runtime: i link `file:`, "Open in …" su un file, un worktree T3 fuori dal progetto IDE, il server remoto,
+in PyCharm "Ask T3 About Selection…", la superficie "Files" e "Open in …".
 
 ### Fase 4 – Qualità e CI
 
