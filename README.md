@@ -2,7 +2,9 @@
 
 # T3 Code Host (Unofficial)
 
-JetBrains IDE plugin that shows the [T3 Code](https://t3.codes) web UI in a tool window.
+JetBrains IDE plugin that shows the [T3 Code](https://t3.codes) web UI in the IDE.
+Each conversation opens in an editor tab; the "T3 Code" tool window shows the thread list and new conversations.
+File links, "Open in…", diffs, the terminal and Git use the IDE tools, when the IDE has them.
 This plugin is not affiliated with or endorsed by the T3 Code project.
 
 - Plan: [`PLAN.md`](PLAN.md)
@@ -37,6 +39,8 @@ Settings | Tools | T3 Code:
 - **t3 command:** empty means `<T3 home>/bin`, `~/.t3/bin`, then `PATH`.
 - **Remote server URL:** empty means the T3 server on this machine. With a URL, the tool window asks for a link from `t3 pair` on that host.
 - **Start t3 serve when no local server answers:** on by default. While this server runs, the T3 desktop app cannot open the same T3 home.
+- **Open conversations in editor tabs:** on by default. Off: the tool window shows the conversations, as in version 0.0.3.
+- **Use the IDE tools in T3:** on by default. Off: T3 uses its own file viewer, diff, terminal and Git panels.
 
 ---
 Plugin based on the [IntelliJ Platform Plugin Template](https://github.com/JetBrains/intellij-platform-plugin-template).

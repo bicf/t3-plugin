@@ -43,6 +43,16 @@ class T3Configurable : BoundConfigurable(T3Bundle["settings.displayName"]) {
                 .bindSelected({ state.autoStartServer }, { state.autoStartServer = it })
                 .comment(T3Bundle["settings.autoStart.comment"])
         }
+        row {
+            checkBox(T3Bundle["settings.openThreadsInEditor"])
+                .bindSelected({ state.openThreadsInEditor }, { state.openThreadsInEditor = it })
+                .comment(T3Bundle["settings.openThreadsInEditor.comment"])
+        }
+        row {
+            checkBox(T3Bundle["settings.useIdeTools"])
+                .bindSelected({ state.useIdeTools }, { state.useIdeTools = it })
+                .comment(T3Bundle["settings.useIdeTools.comment"])
+        }
     }
 
     override fun apply() {

@@ -1,0 +1,48 @@
+package com.bicf.t3plugin.editor
+
+import com.bicf.t3plugin.toolWindow.T3BrowserPanel
+import com.bicf.t3plugin.toolWindow.T3PageTarget
+import com.intellij.openapi.components.service
+import com.intellij.openapi.fileEditor.FileEditor
+import com.intellij.openapi.fileEditor.FileEditorPolicy
+import com.intellij.openapi.fileEditor.FileEditorProvider
+import com.intellij.openapi.fileEditor.FileEditorState
+import com.intellij.openapi.project.DumbAware
+import com.intellij.openapi.project.Project
+import com.intellij.openapi.util.Disposer
+import com.intellij.openapi.util.UserDataHolderBase
+import com.intellij.openapi.vfs.VirtualFile
+import java.beans.PropertyChangeListener
+import javax.swing.JComponent
+
+/** The T3 page of one thread in an editor tab. The tab title follows the thread title of the page. */
+internal class T3ThreadEditor(project: Project, private val file: T3ThreadFile) : UserDataHolderBase(), FileEditor {
+
+    private val panel = T3BrowserPanel(project, T3PageTarget.Thread(file.route)) { title ->
+        project.service<T3ThreadTabs>().updateTitle(file, title)
+    }
+
+    init {
+        Disposer.register(this, panel)
+    }
+
+    override fun getComponent(): JComponent = panel.component
+    override fun getPreferredFocusedComponent(): JComponent = panel.focusComponent
+    override fun getName(): String = "T3"
+    override fun getFile(): VirtualFile = file
+    override fun setState(state: FileEditorState) = Unit
+    override fun isModified(): Boolean = false
+    override fun isValid(): Boolean = true
+    override fun addPropertyChangeListener(listener: PropertyChangeListener) = Unit
+    override fun removePropertyChangeListener(listener: PropertyChangeListener) = Unit
+    override fun dispose() = Unit
+}
+
+/** Opens a [T3ThreadFile] in a [T3ThreadEditor]. Registered in plugin.xml. */
+internal class T3ThreadEditorProvider : FileEditorProvider, DumbAware {
+    override fun accept(project: Project, file: VirtualFile): Boolean = file is T3ThreadFile
+    override fun acceptRequiresReadAction(): Boolean = false
+    override fun createEditor(project: Project, file: VirtualFile): FileEditor = T3ThreadEditor(project, file as T3ThreadFile)
+    override fun getEditorTypeId(): String = "t3-thread"
+    override fun getPolicy(): FileEditorPolicy = FileEditorPolicy.HIDE_DEFAULT_EDITOR
+}

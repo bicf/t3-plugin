@@ -1,0 +1,7 @@
+<!-- Loaded only when the IDE has the Terminal plugin: T3 terminals open in the IDE terminal. -->
+<idea-plugin>
+    <extensions defaultExtensionNs="com.intellij">
+        <projectService serviceInterface="com.bicf.t3plugin.ide.T3TerminalSupport"
+                        serviceImplementation="com.bicf.t3plugin.ide.terminal.T3TerminalSupportImpl"/>
+    </extensions>
+</idea-plugin>

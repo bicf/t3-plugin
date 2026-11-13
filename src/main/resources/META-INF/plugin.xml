@@ -12,6 +12,9 @@
     <depends>com.intellij.modules.platform</depends>
     <!-- Since 2026.2 the JCEF API is provided by the bundled "Web Browser (JCEF)" plugin. -->
     <depends>com.intellij.modules.jcef</depends>
+    <!-- Optional IDE tools: without these plugins, T3 keeps its own terminal and Git actions. -->
+    <depends optional="true" config-file="t3-terminal.xml">org.jetbrains.plugins.terminal</depends>
+    <depends optional="true" config-file="t3-git.xml">Git4Idea</depends>
 
     <resource-bundle>messages.T3Bundle</resource-bundle>
 
@@ -27,7 +30,13 @@
         <statusBarWidgetFactory id="com.bicf.t3plugin.ServerStatus"
                                 implementation="com.bicf.t3plugin.statusBar.T3StatusWidgetFactory"/>
         <notificationGroup id="T3 Code" displayType="BALLOON" key="notification.group"/>
+        <fileEditorProvider implementation="com.bicf.t3plugin.editor.T3ThreadEditorProvider"/>
     </extensions>
+
+    <projectListeners>
+        <listener class="com.bicf.t3plugin.editor.T3ThreadTabs$SelectionListener"
+                  topic="com.intellij.openapi.fileEditor.FileEditorManagerListener"/>
+    </projectListeners>
 
     <actions>
         <action id="com.bicf.t3plugin.AskAboutSelection"

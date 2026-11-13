@@ -18,6 +18,10 @@ dependencies {
         // Since 2026.2 the JCEF API lives in the bundled "Web Browser (JCEF)" plugin.
         bundledPlugin("com.intellij.modules.jcef")
 
+        // Optional dependencies (plugin.xml): the IDE terminal and Git replace the T3 terminal and Git actions.
+        bundledPlugin("org.jetbrains.plugins.terminal")
+        bundledPlugin("Git4Idea")
+
         testFramework(TestFrameworkType.Platform)
         testBundledPlugins("com.intellij.modules.ultimate")
     }
