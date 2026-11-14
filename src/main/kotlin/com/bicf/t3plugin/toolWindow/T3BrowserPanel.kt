@@ -77,7 +77,9 @@ import javax.swing.JPanel
  * - After a pairing, the panel waits until the page has a session, then opens the project page.
  * - Links outside the server origin open in the system browser (see [T3LinkPolicy]).
  * - The IDE colors go to the page at each page load, Look and Feel change and color scheme change (see [T3ThemeSync]).
- * - Copy and paste in the page use the IDE clipboard through the plugin (see [T3ClipboardBridge]).
+ * - Copy and paste in the page use the IDE clipboard through the plugin (see [T3ClipboardBridge]). On Linux, the
+ *   selection and the middle-click paste use the primary selection of the IDE.
+ * - Each message of the user gets "Copy message" and "Wrap lines" buttons (see [T3MessageActions]).
  * - Without editor tabs, in a narrow tool window, the left sidebar of the page gets a drag handle (see [T3SidebarResize]).
  * - With "Use IDE tools", file links, "Open in …", diffs, the terminal and Git use the IDE (see [T3IdeBridge]).
  *   With a remote server, only the diff uses the IDE: the files are on another machine.
@@ -246,6 +248,19 @@ internal class T3BrowserPanel(
                     execute(T3ClipboardBridge.replyScript(id, payload))
                 }
             }
+            value.startsWith(T3ClipboardBridge.SELECTION_PREFIX) -> if (phase == Phase.READY) {
+                val clipboard = CopyPasteManager.getInstance()
+                if (clipboard.isSystemSelectionSupported) {
+                    clipboard.setSystemSelectionContents(StringSelection(value.removePrefix(T3ClipboardBridge.SELECTION_PREFIX)))
+                }
+            }
+            value.startsWith(T3ClipboardBridge.PRIMARY_PREFIX) -> {
+                val id = value.removePrefix(T3ClipboardBridge.PRIMARY_PREFIX)
+                if (phase == Phase.READY && T3ClipboardBridge.isRequestId(id)) {
+                    val payload = T3ClipboardBridge.payload(CopyPasteManager.getInstance().systemSelectionContents)
+                    execute(T3ClipboardBridge.replyScript(id, payload))
+                }
+            }
             value.startsWith(T3RouteWatch.ROUTE_PREFIX) -> if (phase == Phase.READY) onRoute(value.removePrefix(T3RouteWatch.ROUTE_PREFIX))
             value.startsWith(T3RouteWatch.TITLE_PREFIX) -> if (phase == Phase.READY) onTitle(value.removePrefix(T3RouteWatch.TITLE_PREFIX))
             value.startsWith(T3IdeRequest.PREFIX) -> if (phase == Phase.READY) onIdeRequest(value.removePrefix(T3IdeRequest.PREFIX))
@@ -402,7 +417,8 @@ internal class T3BrowserPanel(
         if (browser.cefBrowser.uiComponent.isFocusOwner) browser.cefBrowser.setFocus(true)
         val report = { expression: String -> pageQuery.inject(expression) }
         execute(linkBridgeScript())
-        execute(T3ClipboardBridge.script(report))
+        execute(T3ClipboardBridge.script(CopyPasteManager.getInstance().isSystemSelectionSupported, report))
+        execute(T3MessageActions.script())
         val mode = layout
         if (mode != null) execute(T3Layout.script(mode, report)) else execute(T3SidebarResize.script())
         execute(T3RouteWatch.script(report))

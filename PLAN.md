@@ -49,7 +49,8 @@ IDE JetBrains
 | `T3PairingService` | applicazione | Esegue `t3 auth pairing create --json` e restituisce il link `/pair#token=...`. Accetta solo un link sull'origin del server. Non scrive mai il link o lo stdout nei messaggi di errore. |
 | `T3ProjectBinder` | progetto | Esegue `t3 project add <basePath>`. Tratta `ProjectAlreadyExistsError` (exit 1) come successo. Apre il thread più recente (`/$environmentId/$threadId`), oppure `/`. |
 | `T3ThemeSync` + `T3IdePalette` | progetto | Crea in localStorage il tema T3 `jetbrains-ide` (`t3code:themes:v1`) con i colori dell'IDE, lo seleziona (`t3code:theme`, `t3code:theme-appearance-mode`), rimuove `t3code:theme-halves:v1` e invia un evento `storage` per chiave: la pagina cambia colori senza ricaricarsi. Gira a ogni caricamento, a ogni `LafManagerListener.lookAndFeelChanged` e a ogni cambio di schema colori dell'editor. Lo sfondo dell'editor va su composer, codice e terminale solo se editor e IDE sono entrambi chiari o entrambi scuri. |
-| `T3ClipboardBridge` | browser | Copia: `navigator.clipboard.writeText`, `write` (parte `text/plain`), Ctrl+C e Taglia vanno al plugin, che scrive negli appunti dell'IDE (`CopyPasteManager`). Paste: lo script annulla l'evento `paste` nativo, chiede al plugin gli appunti dell'IDE (testo o immagine PNG) e invia un nuovo evento `paste` allo stesso elemento. Il paste col tasto centrale (selezione primaria X11) resta nativo. Motivo: su Wayland l'IDE scrive negli appunti Wayland, ma Chromium gira su XWayland e legge gli appunti X11, che il desktop aggiorna solo per una finestra X11 con il focus. |
+| `T3ClipboardBridge` | browser | Copia: `navigator.clipboard.writeText`, `write` (parte `text/plain`), Ctrl+C e Taglia vanno al plugin, che scrive negli appunti dell'IDE (`CopyPasteManager`). Paste: lo script annulla l'evento `paste` nativo, chiede al plugin gli appunti dell'IDE (testo o immagine PNG) e invia un nuovo evento `paste` allo stesso elemento. Su Linux (`CopyPasteManager.isSystemSelectionSupported`), una selezione nella pagina va nella selezione primaria dell'IDE dopo 200 ms, e il paste col tasto centrale legge la selezione primaria dell'IDE (solo testo). Su Windows e macOS il paste col tasto centrale resta nativo. Motivo: su Wayland l'IDE scrive negli appunti Wayland, ma Chromium gira su XWayland e legge gli appunti X11, che il desktop aggiorna solo per una finestra X11 con il focus. Lo stesso vale per la selezione primaria. |
+| `T3MessageActions` | browser | Pulsanti "Copy message" e "Disable line wrap" / "Wrap lines" a sinistra del box di ogni messaggio utente (`data-message-role="user"`), visibili con il mouse sul box. La copia clicca il "Copy message" di T3 (testo originale del messaggio). Il wrap spento mostra ogni riga su una riga, con scorrimento orizzontale; lo stato vale per messaggio fino al ricaricamento. |
 | `T3SidebarResize` | browser | Solo senza tab editor. Sotto i 768 px T3 mostra la sidebar come pannello sovrapposto largo quasi tutta la pagina, senza resize. Lo script aggiunge un bordo trascinabile di 6 px (minimo 200 px), salva la larghezza in `t3plugin:mobile-sidebar-width` e la ripristina con un doppio clic. |
 | Focus di Chromium (pannello) | browser | A ogni pressione del mouse nella pagina, e a ogni caricamento con il browser già a fuoco, il pannello chiama `CefBrowser.setFocus(true)`. Motivo: `JBCefBrowser` dà il focus a Chromium solo a un cambio di focus Swing; senza focus Chromium non mostra il cursore di testo. |
 | `T3LinkHandler` (`T3LinkPolicy` + handler del pannello) | browser | Apre nel browser di sistema gli URL esterni all'origin T3. Navigazioni: `onBeforeBrowse`. Popup e link `target="_blank"`: un ponte JavaScript nella pagina, perché con JCEF out-of-process `onBeforePopup` non arriva al plugin. |
@@ -370,6 +371,23 @@ Prove con `runPyCharm` (PyCharm 2026.2.4, PY-262.11879.98), stessa home T3:
 | Riavvio di PyCharm con `isOpen: true` salvato | "T3 Workspace" resta nascosto. |
 
 Not verified a runtime: la superficie "Device" dopo la configurazione del device hub, le superfici "Pull request" e "Linked pull requests", un messaggio nella Side chat, un'apertura del pannello da un agente.
+
+Stato (2026-11-14): regole Linux del copia e incolla (issue #6) e pulsanti nei box dei messaggi utente. `./gradlew test`: 93 test, 0 errori, 1 saltato.
+Prove con `runIde` (IU 2026.2.3, KDE Wayland, `WLToolkit`), home T3 isolata sulla porta 3898. Metodo: eventi del mouse Swing sul `JBCefOsrComponent` (script Groovy della sandbox), tasti DevTools senza comando di editing (Blink sceglie il comando), `xsel` per la selezione primaria X11.
+
+| Prova | Prima | Dopo |
+|---|---|---|
+| Azioni IDE di Ctrl+C, Ctrl+Insert, Ctrl+X, Shift+Delete, Ctrl+V, Shift+Insert, Ctrl+Shift+V nel contesto della pagina | Tutte disattivate (`$Copy`, `$Paste`, `PasteMultiple`, `EditorPaste`, `Terminal.Paste`, …): i tasti vanno a Chromium | Uguale |
+| Ctrl+V, Shift+Insert, Ctrl+Shift+V nel composer | Testo degli appunti IDE | Uguale |
+| Ctrl+C, Ctrl+Insert su una selezione; Shift+Delete nel composer | Appunti IDE con il testo selezionato | Uguale |
+| Selezione con il mouse nel messaggio utente | Selezione primaria Wayland e X11 invariate | Selezione primaria dell'IDE (Wayland) = testo selezionato |
+| Clic centrale nel composer, primaria X11 e Wayland diverse | Testo della primaria X11 | Testo della primaria Wayland dell'IDE; Ctrl+V incolla ancora gli appunti |
+| Pulsante "Copy message" nel box | — | Appunti IDE = testo originale del messaggio; per 1,2 s l'etichetta è "Copied" |
+| Pulsante del wrap, riga lunga | — | Una riga per riga del messaggio, con barra di scorrimento orizzontale; etichetta "Wrap lines" |
+
+Fatti:
+- I tasti Swing creati da script non arrivano a Chromium: la finestra della sandbox non riceve il focus su Wayland. Per questo la prova dei tasti controlla le azioni IDE nel contesto della pagina, poi usa i tasti DevTools.
+- Not verified: la lettura della selezione primaria da un'altra app Wayland (per esempio Konsole); una selezione in un campo password; Windows e macOS.
 
 ### Fase 4 – Qualità e CI
 
