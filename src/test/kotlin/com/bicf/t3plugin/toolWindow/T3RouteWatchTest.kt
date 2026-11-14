@@ -31,9 +31,63 @@ class T3RouteWatchTest {
     }
 
     @Test
-    fun `goes back only to a thread path`() {
+    fun `goes back only to a tab page`() {
         assertTrue(T3RouteWatch.backScript("/$env/t").contains("location.assign('/$env/t')"))
+        assertTrue(T3RouteWatch.backScript("/draft/d1").contains("location.assign('/draft/d1')"))
         assertTrue(runCatching { T3RouteWatch.backScript("/$env/t');alert('x") }.isFailure)
+        assertTrue(runCatching { T3RouteWatch.backScript(T3Routes.NAVIGATOR_PATH) }.isFailure)
+    }
+
+    @Test
+    fun `goes home only to a safe path`() {
+        val script = T3RouteWatch.homeScript(T3Routes.NAVIGATOR_PATH)
+        assertTrue(script.contains("history.pushState({},'','${T3Routes.NAVIGATOR_PATH}')"))
+        assertTrue(script.contains("new PopStateEvent('popstate'"))
+        assertTrue(runCatching { T3RouteWatch.homeScript("/x');alert('y") }.isFailure)
+        assertTrue(runCatching { T3RouteWatch.homeScript("/a/../b") }.isFailure)
+    }
+
+    @Test
+    fun `finds the editor tab of a page`() {
+        val thread = T3Routes.tabPage("/$env/mcp%3A1c76")
+        assertEquals(T3Routes.TabPage(T3Routes.PageKind.THREAD, "thread:$env/mcp:1c76"), thread)
+        assertEquals(thread, T3Routes.tabPage("/$env/mcp:1c76"))
+        assertEquals(T3Routes.TabPage(T3Routes.PageKind.DRAFT, "draft:c319"), T3Routes.tabPage("/draft/c319"))
+        val settings = T3Routes.tabPage("/settings/general")
+        assertEquals(T3Routes.TabPage(T3Routes.PageKind.PAGE, "page:settings"), settings)
+        assertEquals(settings, T3Routes.tabPage("/settings/appearance?x=1"))
+        assertTrue(settings!!.isSettings)
+        assertEquals("page:pull-requests", T3Routes.tabPage("/pull-requests")?.key)
+        assertEquals("page:usage", T3Routes.tabPage("/usage")?.key)
+    }
+
+    @Test
+    fun `opens no tab for the other pages`() {
+        listOf(
+            "/", "", T3Routes.NAVIGATOR_PATH, "/pair", "/api/auth/session", "/draft", "/$env",
+            "/home/ivan/project/file.kt", "/settings/../x", "/settings/a b", "/draft/x');alert('y",
+        ).forEach { assertNull(it, T3Routes.tabPage(it)) }
+    }
+
+    @Test
+    fun `the layout script hides the sidebars of a conversation and reports the right panel`() {
+        val conversation = T3Layout.script(T3Layout.Mode.CONVERSATION) { "send($it)" }
+        assertTrue(conversation.contains("[data-slot=sidebar]{display:none!important}"))
+        assertTrue(conversation.contains("[aria-label^=\"Workspace panel\"]{display:none!important}"))
+        assertTrue(conversation.contains("var m='${T3Layout.PREFIX}${T3Layout.PANEL_TOGGLE}';send(m);"))
+        assertTrue(conversation.contains("var m='${T3Layout.PREFIX}${T3Layout.PANEL_OPENED}';send(m);"))
+        assertTrue(!T3Layout.earlyScript(T3Layout.Mode.CONVERSATION).contains("matchMedia"))
+    }
+
+    @Test
+    fun `the layout script of the tool windows answers the narrow media queries of T3`() {
+        val navigator = T3Layout.earlyScript(T3Layout.Mode.NAVIGATOR)
+        assertTrue(navigator.contains("['(max-width: 767px)','(max-width: 980px)']"))
+        assertTrue(navigator.contains("[data-slot=sidebar-inset],main{display:none!important}"))
+        val panel = T3Layout.script(T3Layout.Mode.PANEL) { "send($it)" }
+        assertTrue(panel.contains("matchMedia"))
+        assertTrue(panel.contains("div:has(> [aria-label^=\"Workspace panel\"])"))
+        assertTrue(!panel.contains("send("))
     }
 
     @Test

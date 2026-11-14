@@ -19,9 +19,12 @@ package com.bicf.t3plugin.ide
  *   to turn n on the socket of T3, with its own request id (from 1 000 000 001): the T3 client ignores the answer.
  *   The IDE diff viewer shows the patch; T3 opens no "Diff" panel. Without a turn number or an answer within 15 s,
  *   T3 does the job.
+ * - Panel surfaces: an item of the "Add panel surface" menu, or a button of the "Open a surface" list of the empty
+ *   right panel. Browser, Pull request, Device and Side chat stay with T3.
  * - Terminal: "Toggle terminal drawer" (when the drawer is closed) and the "Terminal" panel surface open an IDE terminal
  *   in the workspace of the thread. The workspace is the `cwd` of the last `subscribeVcsStatus` request of the page.
  * - Files: the "Files" panel surface selects the workspace in the IDE Project view.
+ * - Diff: the "Diff" panel surface opens the IDE diff of the working tree with `HEAD` (Git feature).
  * - Git (region "Version Control"): the branch selector opens the IDE branches popup (on `pointerdown`: the selector
  *   opens there, before the click), "Changes vs <ref>" opens the IDE diff of the working tree with <ref>,
  *   "Changes Uncommitted" (no upstream) the same diff with `HEAD`, and a button whose label starts with "Commit"
@@ -112,9 +115,11 @@ object T3IdeBridge {
           var b=t.closest('button,[role="menuitem"],[role="combobox"]');if(!b)return;var n=name(b);
           if(F.terminal&&cwd&&b.matches('button[aria-label="Toggle terminal drawer"]')&&b.getAttribute('aria-pressed')!=='true'){
             take(e,{kind:'terminal',cwd:cwd},b);return;}
-          if(b.getAttribute('role')==='menuitem'&&surfaceMenu(b.closest('[role="menu"]'))&&cwd){
-            var w=n.split(' ')[0],kind=w==='Terminal'&&F.terminal?'terminal':w==='Files'&&F.files?'files':null;
-            if(kind){take(e,{kind:kind,cwd:cwd},b,closeMenu);return;}}
+          var chooser=b.tagName==='BUTTON'&&!!b.closest('[aria-label="Open a surface"]');
+          if(cwd&&(chooser||(b.getAttribute('role')==='menuitem'&&surfaceMenu(b.closest('[role="menu"]'))))){
+            var w=n.split(' ')[0],sm=w==='Terminal'&&F.terminal?{kind:'terminal',cwd:cwd}:w==='Files'&&F.files?{kind:'files',cwd:cwd}:
+              w==='Diff'&&F.git?{kind:'branchDiff',cwd:cwd,ref:'HEAD'}:null;
+            if(sm){take(e,sm,b,chooser?null:closeMenu);return;}}
           if(F.git&&cwd&&b.closest('[aria-label="Version Control"]')){
             if(b.getAttribute('role')==='combobox'){if(combo===b){combo=null;e.preventDefault();e.stopImmediatePropagation();}return;}
             var r=/^Changes (?:vs (\S+)|Uncommitted\b)/.exec(n);

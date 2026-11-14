@@ -15,11 +15,11 @@ import com.intellij.openapi.vfs.VirtualFile
 import java.beans.PropertyChangeListener
 import javax.swing.JComponent
 
-/** The T3 page of one thread in an editor tab. The tab title follows the thread title of the page. */
-internal class T3ThreadEditor(project: Project, private val file: T3ThreadFile) : UserDataHolderBase(), FileEditor {
+/** One T3 page in an editor tab. The tab title follows the thread title of the page. */
+internal class T3PageEditor(project: Project, private val file: T3PageFile) : UserDataHolderBase(), FileEditor {
 
-    private val panel = T3BrowserPanel(project, T3PageTarget.Thread(file.route)) { title ->
-        project.service<T3ThreadTabs>().updateTitle(file, title)
+    private val panel = T3BrowserPanel(project, T3PageTarget.Tab(file)) { title ->
+        project.service<T3PageTabs>().updateTitle(file, title)
     }
 
     init {
@@ -38,11 +38,11 @@ internal class T3ThreadEditor(project: Project, private val file: T3ThreadFile) 
     override fun dispose() = Unit
 }
 
-/** Opens a [T3ThreadFile] in a [T3ThreadEditor]. Registered in plugin.xml. */
-internal class T3ThreadEditorProvider : FileEditorProvider, DumbAware {
-    override fun accept(project: Project, file: VirtualFile): Boolean = file is T3ThreadFile
+/** Opens a [T3PageFile] in a [T3PageEditor]. Registered in plugin.xml. */
+internal class T3PageEditorProvider : FileEditorProvider, DumbAware {
+    override fun accept(project: Project, file: VirtualFile): Boolean = file is T3PageFile
     override fun acceptRequiresReadAction(): Boolean = false
-    override fun createEditor(project: Project, file: VirtualFile): FileEditor = T3ThreadEditor(project, file as T3ThreadFile)
+    override fun createEditor(project: Project, file: VirtualFile): FileEditor = T3PageEditor(project, file as T3PageFile)
     override fun getEditorTypeId(): String = "t3-thread"
     override fun getPolicy(): FileEditorPolicy = FileEditorPolicy.HIDE_DEFAULT_EDITOR
 }

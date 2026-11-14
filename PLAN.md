@@ -1,6 +1,6 @@
 # Piano: plugin JetBrains che ospita T3 Code
 
-Il plugin mostra la web UI di T3 Code con browser JCEF: la lista dei thread nel tool window, ogni conversazione in una tab editor.
+Il plugin mostra la web UI di T3 Code con browser JCEF: la sidebar di T3 nel tool window "T3 Code", ogni conversazione in una tab editor senza sidebar, il pannello destro di T3 nel tool window "T3 Workspace".
 Dove l'IDE ha lo strumento, file, diff, terminale e Git di T3 usano l'IDE.
 Il server T3 resta un processo esterno. Il plugin non riscrive la UI di T3.
 
@@ -50,11 +50,13 @@ IDE JetBrains
 | `T3ProjectBinder` | progetto | Esegue `t3 project add <basePath>`. Tratta `ProjectAlreadyExistsError` (exit 1) come successo. Apre il thread più recente (`/$environmentId/$threadId`), oppure `/`. |
 | `T3ThemeSync` + `T3IdePalette` | progetto | Crea in localStorage il tema T3 `jetbrains-ide` (`t3code:themes:v1`) con i colori dell'IDE, lo seleziona (`t3code:theme`, `t3code:theme-appearance-mode`), rimuove `t3code:theme-halves:v1` e invia un evento `storage` per chiave: la pagina cambia colori senza ricaricarsi. Gira a ogni caricamento, a ogni `LafManagerListener.lookAndFeelChanged` e a ogni cambio di schema colori dell'editor. Lo sfondo dell'editor va su composer, codice e terminale solo se editor e IDE sono entrambi chiari o entrambi scuri. |
 | `T3ClipboardBridge` | browser | Copia: `navigator.clipboard.writeText`, `write` (parte `text/plain`), Ctrl+C e Taglia vanno al plugin, che scrive negli appunti dell'IDE (`CopyPasteManager`). Paste: lo script annulla l'evento `paste` nativo, chiede al plugin gli appunti dell'IDE (testo o immagine PNG) e invia un nuovo evento `paste` allo stesso elemento. Il paste col tasto centrale (selezione primaria X11) resta nativo. Motivo: su Wayland l'IDE scrive negli appunti Wayland, ma Chromium gira su XWayland e legge gli appunti X11, che il desktop aggiorna solo per una finestra X11 con il focus. |
-| `T3SidebarResize` | browser | Sotto i 768 px T3 mostra la sidebar come pannello sovrapposto largo quasi tutta la pagina, senza resize. Lo script aggiunge un bordo trascinabile di 6 px (minimo 200 px), salva la larghezza in `t3plugin:mobile-sidebar-width` e la ripristina con un doppio clic. |
+| `T3SidebarResize` | browser | Solo senza tab editor. Sotto i 768 px T3 mostra la sidebar come pannello sovrapposto largo quasi tutta la pagina, senza resize. Lo script aggiunge un bordo trascinabile di 6 px (minimo 200 px), salva la larghezza in `t3plugin:mobile-sidebar-width` e la ripristina con un doppio clic. |
 | Focus di Chromium (pannello) | browser | A ogni pressione del mouse nella pagina, e a ogni caricamento con il browser già a fuoco, il pannello chiama `CefBrowser.setFocus(true)`. Motivo: `JBCefBrowser` dà il focus a Chromium solo a un cambio di focus Swing; senza focus Chromium non mostra il cursore di testo. |
 | `T3LinkHandler` (`T3LinkPolicy` + handler del pannello) | browser | Apre nel browser di sistema gli URL esterni all'origin T3. Navigazioni: `onBeforeBrowse`. Popup e link `target="_blank"`: un ponte JavaScript nella pagina, perché con JCEF out-of-process `onBeforePopup` non arriva al plugin. |
-| `T3ThreadTabs` + `T3ThreadEditorProvider` | progetto | Ogni conversazione è una tab editor (`T3ThreadFile`, file solo in memoria) con un proprio `T3BrowserPanel` sul thread. Una tab per thread; il titolo della tab è il titolo del thread nella pagina. L'IDE non riapre le tab dopo un riavvio. |
-| `T3RouteWatch` | browser | Ogni 250 ms legge `location.pathname` e il titolo del thread (`Thread actions for <titolo>`). Tool window: un thread scelto si apre in una tab, e il tool window torna alla home con il link "T3 Code home". Tab: un altro thread si apre nella sua tab, e la tab torna al suo thread (`history.back()`). Il router scrive `mcp:…` come `mcp%3A…`. |
+| `T3PageTabs` + `T3PageEditorProvider` | progetto | Ogni pagina T3 è una tab editor (`T3PageFile`, file solo in memoria) con un proprio `T3BrowserPanel`: thread, bozza (`/draft/<id>`) o pagina app (`settings`, `projects`, `pull-requests`, `usage`). Una tab per chiave (`T3Routes.tabPage`); il titolo della tab è il titolo del thread nella pagina. Una bozza diventa la tab del suo thread al primo messaggio. La tab dei settings si chiude quando l'utente chiude i settings. L'IDE non riapre le tab dopo un riavvio. |
+| `T3Layout` | browser | Layout con tab editor (sezione "Layout nell'IDE"). Lo script entra a `onLoadStart` e di nuovo dopo il caricamento. |
+| `T3WorkspacePanels` + `T3WorkspaceToolWindowFactory` | progetto | Tool window "T3 Workspace" (a destra): un pannello per tab, creato solo su richiesta, con il pannello destro di T3 della pagina della tab. Il pannello segue la tab: selezione, titolo, nuova pagina, chiusura. |
+| `T3RouteWatch` | browser | Ogni 250 ms legge `location.pathname` e il titolo del thread (`Thread actions for <titolo>`). Tool window: una pagina scelta si apre in una tab, e il tool window torna a `/ide-navigator` (`history.pushState` + `popstate`). Tab: un'altra pagina si apre nella sua tab, e la tab torna alla sua pagina (`history.back()`). Il router scrive `mcp:…` come `mcp%3A…`. |
 | `T3IdeBridge` + `T3IdeTools` | browser + progetto | Strumenti T3 → strumenti IDE (dettagli nella sezione "Strumenti IDE"). Lo script entra a `onLoadStart`, prima degli script della pagina. |
 | `T3Settings` | applicazione | Settings → Tools → T3 Code: percorso della CLI, URL di un server remoto, avvio automatico del server, conversazioni in tab editor, strumenti IDE. |
 | `T3AskAboutSelectionAction` | editor | "Ask T3 About Selection…": `t3 thread send` al thread aperto, oppure `t3 thread start` nel progetto. |
@@ -68,7 +70,7 @@ Flusso all'apertura del tool window:
 5. `T3PairingService` revoca le sessioni con la stessa label, poi crea un token con TTL di 2 minuti e label `JetBrains <IDE> (<hash>)`.
    L'hash viene dalla cartella system dell'IDE: tutti i progetti di un IDE usano lo stesso archivio di cookie JCEF.
 6. `JBCefBrowser` carica il link `/pair#token=...`. La web UI scambia il token con un cookie di sessione valido 30 giorni.
-7. `T3ProjectBinder` registra la root del progetto. Con le tab editor, il tool window apre `/` e il thread più recente del progetto in una tab (se nessuna tab T3 è aperta). Senza tab editor, il tool window apre il thread più recente, oppure `/`.
+7. `T3ProjectBinder` registra la root del progetto. Con le tab editor, il tool window apre `/ide-navigator` e il thread più recente del progetto in una tab (se nessuna tab T3 è aperta). Senza tab editor, il tool window apre il thread più recente, oppure `/`.
 
 ## Strumenti IDE
 
@@ -86,9 +88,13 @@ Fatti verificati su T3 0.1.9 (DevTools sulla web UI):
 | "Open diff" e righe file del riquadro "changed files" | clic; turno da `turnSummary.checkpointTurnCount` nelle props React | `orchestration.getTurnDiff` (turno n-1 → n) sul socket di T3, con id da 1 000 000 001; diff viewer (`PatchDiffRequest`) | T3 apre il pannello "Diff" |
 | "Toggle terminal drawer" (chiuso), superficie "Terminal" | clic | Terminale IDE nella cartella del thread (`cwd` dell'ultimo `subscribeVcsStatus`) | terminale T3 |
 | Superficie "Files" | clic | Project view sulla cartella del thread | pannello "Files" di T3 |
+| Superficie "Diff" | clic | `GitBrancher.showDiffWithLocal(HEAD)` | pannello "Diff" di T3 |
+| Superfici "Browser", "Pull request", "Linked pull requests", "Device", "Side chat" | — | restano a T3, nel tool window "T3 Workspace" | — |
 | Selettore di branch (regione "Version Control") | `pointerdown` | Popup "Branches" di Git | lista di T3 |
 | "Changes vs <ref>" / "Changes Uncommitted" | clic | `GitBrancher.showDiffWithLocal(<ref> o HEAD)` | pannello di T3 |
 | Pulsante che inizia con "Commit" | clic | Azione "Commit…" (`CheckinProject`) | dialog di T3 |
+
+Una superficie si apre dal menu "Add panel surface" o dalla lista "Open a surface" del pannello vuoto: il bridge intercetta entrambi.
 
 Regole:
 - Terminale e Git solo con i plugin Terminal e Git dell'IDE (`<depends optional>`), e Git solo per un repository registrato nell'IDE.
@@ -96,6 +102,29 @@ Regole:
 - Un'azione dell'IDE con il componente della pagina non visibile (tab in secondo piano) usa il frame dell'IDE come contesto.
 - `window.__t3IdeLog` tiene gli ultimi 50 eventi del bridge (tag ed esiti, mai contenuti).
 - Settings → "Use the IDE tools in T3" spegne tutto il bridge.
+
+## Layout nell'IDE
+
+Con "Open conversations in editor tabs" (`T3Layout`). Fatti verificati su T3 0.1.9 (DevTools e sandbox IDE):
+- La sidebar è `[data-slot=sidebar]` dentro `[data-slot=sidebar-wrapper]`; la conversazione è `[data-slot=sidebar-inset]`.
+- Il pannello destro ha l'etichetta "Workspace panel" senza superficie e "Workspace panel: <superficie>" con una superficie attiva (selettore `[aria-label^="Workspace panel"]`). "Toggle right panel" lo apre e lo chiude (`aria-pressed`).
+- T3 salva lo stato del pannello per thread in `localStorage` (`t3code:right-panel-state:v2`: `isOpen`, `activeSurfaceId`, `surfaces`, `maximized`). Una pagina legge lo stato solo al caricamento.
+- Sotto i 768 px (`matchMedia("(max-width: 767px)")`) la sidebar è uno sheet che si chiude; sotto i 981 px (`(max-width: 980px)`) il pannello destro è uno sheet.
+- Su un route sconosciuto, come `/ide-navigator`, T3 mostra la sidebar e una pagina "Not found". "New thread" con il progetto scelto porta a `/draft/<id>` del progetto (una bozza per progetto).
+- Settings è un dialog sopra la pagina (`/settings/<sezione>`); "Close" lascia `/settings`.
+
+| Dove | Cosa mostra | Come |
+|---|---|---|
+| Tool window "T3 Code" (a sinistra) | Solo la sidebar di T3, a tutta larghezza | Route `/ide-navigator`; `matchMedia` risponde `false` alle 2 query; CSS nasconde la conversazione e la pagina "Not found" |
+| Tab editor | Pagina senza sidebar e senza pannello destro | CSS; "Toggle right panel" → tool window "T3 Workspace" |
+| Tool window "T3 Workspace" (a destra) | Solo il pannello destro del thread della tab, a tutta larghezza | `matchMedia` come sopra; CSS; lo script apre il pannello se è chiuso |
+
+Regole:
+- Un clic su "Toggle right panel" nella tab mostra o nasconde il pannello della tab in "T3 Workspace". La pagina della tab non apre il suo pannello.
+- Se T3 apre il pannello nella tab dopo il caricamento (scorciatoia, agente), la tab lo chiude e "T3 Workspace" mostra il pannello, ricaricato per leggere lo stato nuovo. Un pannello aperto al caricamento si chiude senza messaggio.
+- "T3 Workspace" aperto senza pannelli mostra il pannello della tab T3 selezionata.
+- Compromesso: le pagine di tab e pannello scrivono lo stato completo del pannello in `localStorage`. Se la tab apre una superficie, il pannello ricaricato perde una superficie aggiunta solo nel pannello dopo l'ultima scrittura della tab (not verified a runtime).
+- Senza tab editor il tool window mostra la UI completa, come nella versione 0.0.3.
 
 ## Limiti noti
 
@@ -131,12 +160,12 @@ L'utente sceglie un modello di default nelle impostazioni di T3. Il plugin non s
 
 ### Avvisi del Plugin Verifier
 
-`./gradlew verifyPlugin` dà "Compatible" e 0 errori su IU-262.11879.100 e IU-263.7307.200 (2026-11-12). Il plugin mantiene questi avvisi:
+`./gradlew verifyPlugin` dà "Compatible" e 0 errori su IU-262.12573.28 e IU-263.7307.200 (2026-11-14). Il plugin mantiene questi avvisi:
 
 | Avviso | 262 | 263 | Causa |
 |---|---|---|---|
-| API deprecate | 7 | 8 | Kotlin genera metodi bridge per `isApplicable` e `isDoNotActivateOnStart` di `ToolWindowFactory`, e per `getPresentation(PlatformType)` di `StatusBarWidget`. Su 263 si aggiunge il costruttore `DynamicBundle(String)` in `T3Bundle`. Su entrambe: `TerminalToolWindowManager.createShellWidget` in `T3TerminalSupportImpl` (l'API nuova, `TerminalToolWindowTabsManager`, è sperimentale e sta in un modulo di contenuto del plugin Terminal). |
-| API sperimentali | 6 | 6 | Kotlin genera metodi bridge in `T3ToolWindowFactory` per `getAnchor`, `getIcon` e `manage` di `ToolWindowFactory`. |
+| API deprecate | 11 | 12 | Kotlin genera metodi bridge per `isApplicable` e `isDoNotActivateOnStart` di `ToolWindowFactory` (in `T3ToolWindowFactory` e `T3WorkspaceToolWindowFactory`), e per `getPresentation(PlatformType)` di `StatusBarWidget`. Su 263 si aggiunge il costruttore `DynamicBundle(String)` in `T3Bundle`. Su entrambe: `TerminalToolWindowManager.createShellWidget` in `T3TerminalSupportImpl` (l'API nuova, `TerminalToolWindowTabsManager`, è sperimentale e sta in un modulo di contenuto del plugin Terminal). |
+| API sperimentali | 12 | 12 | Kotlin genera metodi bridge in `T3ToolWindowFactory` e `T3WorkspaceToolWindowFactory` per `getAnchor`, `getIcon` e `manage` di `ToolWindowFactory`. |
 
 Il plugin non usa API "scheduled for removal". La ricerca della CLI in `PATH` non usa `PathEnvironmentVariableUtil.findInPath`, deprecato in 263.
 
@@ -300,6 +329,47 @@ Fatti:
 
 Not verified a runtime: i link `file:`, "Open in …" su un file, un worktree T3 fuori dal progetto IDE, il server remoto,
 in PyCharm "Ask T3 About Selection…", la superficie "Files" e "Open in …".
+
+Stato (2026-11-14): layout nell'IDE (sezione "Layout nell'IDE"). `./gradlew test`: 91 test, 0 errori, 1 saltato. `verifyPlugin`: "Compatible" su IU-262.12573.28 e IU-263.7307.200.
+Prove con `runIde` (IU 2026.2.3), home T3 isolata sulla porta 3898, stesso metodo:
+
+| Prova | Risultato |
+|---|---|
+| Apertura del progetto | "T3 Code" a sinistra su `/ide-navigator`, solo la sidebar a 461 px; thread più recente in una tab senza sidebar e senza pannello destro. |
+| Clic su un thread nella sidebar | Tab nuova selezionata; il tool window torna su `/ide-navigator`. |
+| "New thread", progetto `demo` | Tab "New T3 thread" su `/draft/c319…`. |
+| Primo messaggio nella tab della bozza | La tab diventa la tab del thread `c0099f00…`, con il titolo del thread. |
+| Settings nella sidebar | Tab "T3 Settings" su `/settings/general`; "Close" chiude la tab. |
+| "Toggle right panel" nella tab, 2 clic | "T3 Workspace" con il pannello a tutta larghezza (632 px), poi nascosto; nella tab `aria-pressed` resta `false`. |
+| "Terminal", "Diff" nella lista "Open a surface" | Terminale IDE "T3: demo"; tab "Changes Between HEAD and Current Working Tree" nel tool window VCS. |
+| "Browser" nel menu "Add panel surface" | Superficie Browser di T3 in "T3 Workspace" a tutta larghezza (461 px), con la lista dei server locali. |
+| "Device" nella lista "Open a surface" | Dialog di T3 "Set up devices" in "T3 Workspace" (device hub spento nella home di prova). |
+| "Side chat" nella lista "Open a surface" | Superficie Side chat in "T3 Workspace" a tutta larghezza (461 px), con il composer. |
+| T3 apre il pannello nella tab (clic da script) | La tab chiude il pannello; "T3 Workspace" mostra il pannello del thread. |
+| Ricaricamento della tab con `isOpen: true` salvato | Nessun pannello e "T3 Workspace" resta nascosto. |
+| Chiusura delle tab | "T3 Workspace" chiude i pannelli e si nasconde. |
+| "Open conversations in editor tabs" spento | Il tool window mostra il thread più recente con la UI completa e la maniglia della sidebar. |
+
+Problemi trovati e risolti durante le prove:
+1. Sotto i 981 px T3 mostrava il pannello destro come sheet di 384 px: lo script risponde `false` anche a `(max-width: 980px)`.
+2. La pagina "Not found" di `/ide-navigator` usciva dal bordo destro della sidebar: il CSS nasconde `main`.
+3. "T3 Workspace" si apriva a ogni caricamento di una tab, per lo stato salvato dal pannello: la tab chiude in silenzio un pannello aperto al caricamento.
+4. Con una superficie attiva, T3 chiama il pannello "Workspace panel: <superficie>". Il CSS cercava solo "Workspace panel": "T3 Workspace" mostrava la superficie Browser stretta, con uno spazio vuoto a sinistra, e la Side chat come pagina vuota. La prima prova di "Browser" non aveva visto il difetto. Il selettore ora è `[aria-label^="Workspace panel"]`.
+5. "T3 Workspace" si apriva quando un codice leggeva il content manager del tool window nascosto, perché la piattaforma crea allora il contenuto. Il pannello della tab selezionata si apre ora solo con il tool window visibile.
+
+Prove con `runPyCharm` (PyCharm 2026.2.4, PY-262.11879.98), stessa home T3:
+
+| Prova | Risultato |
+|---|---|
+| Apertura del progetto | "T3 Code" a sinistra su `/ide-navigator`, solo la sidebar a 456 px; thread più recente in una tab; "T3 Workspace" nascosto. |
+| Clic su un thread, "New thread" con `demo`, Settings e "Close" | Tab del thread; tab "New T3 thread" su `/draft/7d0c…`; tab "T3 Settings" aperta e poi chiusa. |
+| "Toggle right panel" nella tab, 2 clic, con la tab a 990 px e a 660 px | "T3 Workspace" mostrato, poi nascosto. |
+| Tab a 660 px | Layout stretto di T3: conversazione e composer a tutta larghezza, pulsante della sidebar nascosto, nessuno sheet, nessuno scroll orizzontale. |
+| "Terminal" e "Files" nel menu "Add panel surface"; "Terminal" e "Diff" nella lista "Open a surface" | Terminale IDE "T3: demo"; Project view sul progetto; "Changes Between HEAD and Current Working Tree" nel tool window VCS. Il pannello di T3 non cambia. |
+| "Side chat" in "T3 Workspace" | Superficie Side chat a tutta larghezza (379 px). |
+| Riavvio di PyCharm con `isOpen: true` salvato | "T3 Workspace" resta nascosto. |
+
+Not verified a runtime: la superficie "Device" dopo la configurazione del device hub, le superfici "Pull request" e "Linked pull requests", un messaggio nella Side chat, un'apertura del pannello da un agente.
 
 ### Fase 4 – Qualità e CI
 
