@@ -2,7 +2,7 @@ package com.bicf.t3plugin.actions
 
 import com.bicf.t3plugin.T3Bundle
 import com.bicf.t3plugin.T3Exception
-import com.bicf.t3plugin.editor.T3ThreadTabs
+import com.bicf.t3plugin.editor.T3PageTabs
 import com.bicf.t3plugin.project.T3ProjectBinder
 import com.bicf.t3plugin.project.T3Threads
 import com.bicf.t3plugin.server.T3Cli
@@ -68,7 +68,7 @@ class T3AskAboutSelectionAction : DumbAwareAction() {
 
         val scope = project.service<T3ProjectScope>()
         val inTabs = T3Settings.getInstance().openThreadsInEditor
-        val openThreadId = if (inTabs) project.service<T3ThreadTabs>().lastThreadId() else scope.browserPanel?.currentThreadId()
+        val openThreadId = if (inTabs) project.service<T3PageTabs>().lastThreadId() else scope.browserPanel?.currentThreadId()
         scope.coroutineScope.launch(Dispatchers.EDT) {
             try {
                 val (threadId, environmentId) = runInterruptible(Dispatchers.IO) {
@@ -84,7 +84,7 @@ class T3AskAboutSelectionAction : DumbAwareAction() {
                 }
                 val route = environmentId?.let { T3Routes.threadPath(it, threadId) }?.let(T3Routes::threadRoute)
                 if (inTabs && route != null) {
-                    project.service<T3ThreadTabs>().open(route)
+                    project.service<T3PageTabs>().open(route.path)
                 } else {
                     ToolWindowManager.getInstance(project).getToolWindow(T3ToolWindowFactory.ID)?.activate {
                         project.service<T3ProjectScope>().browserPanel?.openThread(threadId)

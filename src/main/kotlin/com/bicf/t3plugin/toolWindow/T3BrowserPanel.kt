@@ -2,7 +2,8 @@ package com.bicf.t3plugin.toolWindow
 
 import com.bicf.t3plugin.T3Bundle
 import com.bicf.t3plugin.T3Exception
-import com.bicf.t3plugin.editor.T3ThreadTabs
+import com.bicf.t3plugin.editor.T3PageFile
+import com.bicf.t3plugin.editor.T3PageTabs
 import com.bicf.t3plugin.ide.T3IdeBridge
 import com.bicf.t3plugin.ide.T3IdeRequest
 import com.bicf.t3plugin.ide.T3IdeTools
@@ -14,6 +15,7 @@ import com.bicf.t3plugin.server.T3Home
 import com.bicf.t3plugin.server.T3ServerService
 import com.bicf.t3plugin.settings.T3Settings
 import com.bicf.t3plugin.settings.T3SettingsListener
+import com.bicf.t3plugin.workspace.T3WorkspacePanels
 import com.intellij.ide.BrowserUtil
 import com.intellij.ide.ui.LafManagerListener
 import com.intellij.openapi.Disposable
@@ -56,23 +58,27 @@ import javax.swing.JComponent
 import javax.swing.JPanel
 
 /**
- * The T3 Code web UI in a [JBCefBrowser] (steps 2–7 of the flow in PLAN.md), in the tool window or in an editor tab.
+ * The T3 Code web UI in a [JBCefBrowser] (steps 2–7 of the flow in PLAN.md), in a tool window or in an editor tab.
  *
  * Rules:
  * - The panel shows a status text until the browser has a page to show. The user never sees the session JSON.
  * - Tool window ([T3PageTarget.Navigator]), local server: the panel creates a pairing link only when
  *   `GET /api/auth/session` says `"authenticated": false`, and registers the project with `t3 project add`.
- *   With "Open conversations in editor tabs", it shows the T3 home page, opens the newest thread of the project in a tab
- *   (when no T3 tab is open), and opens each thread that the user selects in a tab, then goes back to the home page.
- *   Without that setting, it opens the newest thread of the project, as before.
- * - Editor tab ([T3PageTarget.Thread]): the panel shows its thread. A click on another thread opens that thread in its
- *   own tab, and the panel goes back to its thread. Without a session, the panel asks the user to open the tool window.
+ *   With "Open conversations in editor tabs", it shows only the T3 sidebar on [T3Routes.NAVIGATOR_PATH]
+ *   (see [T3Layout]), opens the newest thread of the project in a tab (when no T3 tab is open), and opens each page
+ *   that the user selects (thread, draft, settings, …) in a tab, then goes back to [T3Routes.NAVIGATOR_PATH].
+ *   Without that setting, it opens the newest thread of the project with the full web UI, as in version 0.0.3.
+ * - Editor tab ([T3PageTarget.Tab]): the panel shows its page without the T3 sidebars. A click on another page opens
+ *   that page in its own tab, and the panel goes back to its page. A draft tab becomes the tab of its thread when the
+ *   user sends the first message. A settings tab closes when the user closes the settings.
+ *   Without a session, the panel asks the user to open the tool window.
+ * - "T3 Workspace" tool window ([T3PageTarget.Panel]): the right panel of the page of a tab (see [T3WorkspacePanels]).
  * - Remote server (Settings): the panel never runs the CLI. Without a session, the user pastes a link from `t3 pair`.
  * - After a pairing, the panel waits until the page has a session, then opens the project page.
  * - Links outside the server origin open in the system browser (see [T3LinkPolicy]).
  * - The IDE colors go to the page at each page load, Look and Feel change and color scheme change (see [T3ThemeSync]).
  * - Copy and paste in the page use the IDE clipboard through the plugin (see [T3ClipboardBridge]).
- * - In a narrow tool window, the left sidebar of the page gets a drag handle (see [T3SidebarResize]).
+ * - Without editor tabs, in a narrow tool window, the left sidebar of the page gets a drag handle (see [T3SidebarResize]).
  * - With "Use IDE tools", file links, "Open in …", diffs, the terminal and Git use the IDE (see [T3IdeBridge]).
  *   With a remote server, only the diff uses the IDE: the files are on another machine.
  * - Each mouse press in the page and each page load with the browser focused give the keyboard focus to Chromium.
@@ -117,14 +123,30 @@ internal class T3BrowserPanel(
     private var environmentId: String? = null
     private var pendingPath: String? = null
     private var pagePath: String? = null
-    private var initialTab: T3Routes.ThreadRoute? = null
+    private var initialTab: String? = null
     private var job: Job? = null
 
     @Volatile
     private var disposed = false
 
     private val navigator: Boolean get() = target == T3PageTarget.Navigator
-    private val threadRoute: T3Routes.ThreadRoute? get() = (target as? T3PageTarget.Thread)?.route
+
+    /** The page of an editor tab or of its right panel; null in the "T3 Code" tool window. */
+    private val pageFile: T3PageFile? get() = when (val t = target) {
+        T3PageTarget.Navigator -> null
+        is T3PageTarget.Tab -> t.file
+        is T3PageTarget.Panel -> t.file
+    }
+
+    /** The layout of the page; null for the full web UI (tool window without editor tabs). Read on CEF threads too. */
+    private val layout: T3Layout.Mode? get() = when (target) {
+        T3PageTarget.Navigator -> if (T3Settings.getInstance().openThreadsInEditor) T3Layout.Mode.NAVIGATOR else null
+        is T3PageTarget.Tab -> T3Layout.Mode.CONVERSATION
+        is T3PageTarget.Panel -> T3Layout.Mode.PANEL
+    }
+
+    /** The first page of the app in this panel, after a pairing or with a remote server. */
+    private val homePath: String get() = if (layout == T3Layout.Mode.NAVIGATOR) T3Routes.NAVIGATOR_PATH else "/"
 
     init {
         // Disposal order is reverse: query, browser, then client.
@@ -157,7 +179,7 @@ internal class T3BrowserPanel(
     fun connect() {
         job?.cancel()
         origin = null
-        environmentId = threadRoute?.environmentId
+        environmentId = pageFile?.threadRoute?.environmentId
         pendingPath = null
         pagePath = null
         initialTab = null
@@ -197,6 +219,11 @@ internal class T3BrowserPanel(
         if (phase == Phase.READY) browser.loadURL(serverOrigin + path)
     }
 
+    /** Loads the page again; before the page is ready, connects again. Call it on the EDT. */
+    fun reload() {
+        if (phase == Phase.READY) browser.cefBrowser.reload() else connect()
+    }
+
     private fun checkSession(serverOrigin: String) {
         origin = serverOrigin
         phase = Phase.CHECKING_SESSION
@@ -222,6 +249,7 @@ internal class T3BrowserPanel(
             value.startsWith(T3RouteWatch.ROUTE_PREFIX) -> if (phase == Phase.READY) onRoute(value.removePrefix(T3RouteWatch.ROUTE_PREFIX))
             value.startsWith(T3RouteWatch.TITLE_PREFIX) -> if (phase == Phase.READY) onTitle(value.removePrefix(T3RouteWatch.TITLE_PREFIX))
             value.startsWith(T3IdeRequest.PREFIX) -> if (phase == Phase.READY) onIdeRequest(value.removePrefix(T3IdeRequest.PREFIX))
+            value.startsWith(T3Layout.PREFIX) -> if (phase == Phase.READY) onLayoutMessage(value.removePrefix(T3Layout.PREFIX))
             else -> when (phase) {
                 Phase.CHECKING_SESSION -> onSessionBody(value)
                 Phase.PAIRING_PAGE -> when (value) {
@@ -236,13 +264,13 @@ internal class T3BrowserPanel(
     private fun onSessionBody(body: String) {
         val serverOrigin = origin ?: return
         val authenticated = T3Session.isAuthenticated(body)
-        val route = threadRoute
-        if (route != null) {
-            if (authenticated) open(serverOrigin + route.path) else askToPairInToolWindow()
+        val file = pageFile
+        if (file != null) {
+            if (authenticated) open(serverOrigin + file.pagePath) else askToPairInToolWindow()
             return
         }
         if (remote) {
-            if (authenticated) open(serverOrigin + "/") else askForPairingLink(serverOrigin)
+            if (authenticated) open(serverOrigin + homePath) else askForPairingLink(serverOrigin)
             return
         }
         phase = Phase.PREPARING
@@ -268,15 +296,16 @@ internal class T3BrowserPanel(
     }
 
     /**
-     * The first page of the tool window. With editor tabs: `/`, and the newest thread of the project opens in a tab
-     * when the page is ready (after a pairing, the tab finds a session). Without editor tabs: the newest thread.
+     * The first page of the tool window. With editor tabs: [T3Routes.NAVIGATOR_PATH], and the newest thread of the
+     * project opens in a tab when the page is ready (after a pairing, the tab finds a session).
+     * Without editor tabs: the newest thread.
      */
     private fun startPath(binding: T3ProjectBinder.Binding): String {
         if (!T3Settings.getInstance().openThreadsInEditor) return binding.path
         val environment = binding.environmentId
         val thread = binding.threadId
-        initialTab = if (environment != null && thread != null) T3Routes.threadRoute("/$environment/$thread") else null
-        return "/"
+        initialTab = if (environment != null && thread != null) T3Routes.threadPath(environment, thread) else null
+        return T3Routes.NAVIGATOR_PATH
     }
 
     /** Step 7. A binding error never blocks the web UI: the panel opens `/` instead. Runs on a background thread. */
@@ -344,7 +373,7 @@ internal class T3BrowserPanel(
         pendingPath = null
         when {
             target != null -> browser.loadURL(serverOrigin + target)
-            browser.cefBrowser.url.orEmpty().startsWith("$serverOrigin/pair") -> browser.loadURL("$serverOrigin/")
+            browser.cefBrowser.url.orEmpty().startsWith("$serverOrigin/pair") -> browser.loadURL(serverOrigin + homePath)
             // The web UI left the pairing page without a page load, so onPageLoaded does not run for the app.
             else -> preparePage()
         }
@@ -368,20 +397,21 @@ internal class T3BrowserPanel(
         }
     }
 
-    /** Installs the bridges, the route watch, the sidebar handle and the IDE colors in the T3 page on screen. */
+    /** Installs the bridges, the route watch, the layout or the sidebar handle, and the IDE colors in the T3 page on screen. */
     private fun preparePage() {
         if (browser.cefBrowser.uiComponent.isFocusOwner) browser.cefBrowser.setFocus(true)
         val report = { expression: String -> pageQuery.inject(expression) }
         execute(linkBridgeScript())
         execute(T3ClipboardBridge.script(report))
-        execute(T3SidebarResize.script())
+        val mode = layout
+        if (mode != null) execute(T3Layout.script(mode, report)) else execute(T3SidebarResize.script())
         execute(T3RouteWatch.script(report))
         val features = ideFeatures()
         if (features.any) execute(T3IdeBridge.script(features, report))
         applyTheme()
         val tab = initialTab
         initialTab = null
-        val tabs = project.service<T3ThreadTabs>()
+        val tabs = project.service<T3PageTabs>()
         if (tab != null && !tabs.hasOpenTabs()) tabs.open(tab, focus = false)
     }
 
@@ -395,24 +425,60 @@ internal class T3BrowserPanel(
     /** A new page path of the single-page app (see [T3RouteWatch]). */
     private fun onRoute(path: String) {
         pagePath = path
-        val route = T3Routes.threadRoute(path) ?: return
-        val own = threadRoute
-        val tabs = project.service<T3ThreadTabs>()
-        when {
-            own == null -> if (T3Settings.getInstance().openThreadsInEditor) {
-                tabs.open(route)
-                execute(T3RouteWatch.goHomeScript())
+        val tabs = project.service<T3PageTabs>()
+        when (val t = target) {
+            T3PageTarget.Navigator -> if (layout == T3Layout.Mode.NAVIGATOR && path != T3Routes.NAVIGATOR_PATH) {
+                tabs.open(path)
+                execute(T3RouteWatch.homeScript(T3Routes.NAVIGATOR_PATH))
             }
-            route != own -> {
-                tabs.open(route)
-                execute(T3RouteWatch.backScript(own.path))
+            is T3PageTarget.Tab -> onTabRoute(t.file, path, tabs)
+            is T3PageTarget.Panel -> {
+                val page = T3Routes.tabPage(path) ?: return
+                if (page.key == t.file.page.key) return
+                tabs.open(path)
+                execute(T3RouteWatch.backScript(t.file.pagePath))
+            }
+        }
+    }
+
+    /**
+     * A new page in an editor tab. `/` and other pages without a tab are ignored: T3 replaces them with another page.
+     * - Same tab key: the tab keeps the new path (another settings section).
+     * - Draft to thread: the draft became this thread.
+     * - Settings to another page: the user closed the settings; the tab closes, and a thread opens in its own tab.
+     * - Other pages open in their own tab, and the tab goes back to its page.
+     */
+    private fun onTabRoute(file: T3PageFile, path: String, tabs: T3PageTabs) {
+        val page = T3Routes.tabPage(path) ?: return
+        val own = file.page
+        when {
+            page.key == own.key -> tabs.changePath(file, path)
+            own.kind == T3Routes.PageKind.DRAFT && page.kind == T3Routes.PageKind.THREAD -> tabs.changePath(file, path)
+            own.isSettings -> {
+                if (page.kind == T3Routes.PageKind.THREAD) tabs.open(path)
+                tabs.close(file)
+            }
+            else -> {
+                tabs.open(path)
+                execute(T3RouteWatch.backScript(file.pagePath))
             }
         }
     }
 
     private fun onTitle(title: String) {
-        val own = threadRoute ?: return
-        if (pagePath?.let(T3Routes::threadRoute) == own && title.isNotBlank()) onThreadTitle(title)
+        val file = (target as? T3PageTarget.Tab)?.file ?: return
+        if (file.page.kind != T3Routes.PageKind.THREAD || title.isBlank()) return
+        if (pagePath?.let(T3Routes::tabPage)?.key == file.page.key) onThreadTitle(title)
+    }
+
+    /** "Toggle right panel" in an editor tab, or T3 opened its right panel there (see [T3Layout]). */
+    private fun onLayoutMessage(message: String) {
+        val file = (target as? T3PageTarget.Tab)?.file ?: return
+        val panels = project.service<T3WorkspacePanels>()
+        when (message) {
+            T3Layout.PANEL_TOGGLE -> panels.toggle(file)
+            T3Layout.PANEL_OPENED -> panels.show(file, reload = true)
+        }
     }
 
     private fun onIdeRequest(json: String) {
@@ -505,13 +571,16 @@ internal class T3BrowserPanel(
     }
 
     /**
-     * Installs the IDE bridge before the scripts of the page run. Reason: the T3 client keeps the `send` function of its
-     * WebSocket when it creates the socket, so a patch of `WebSocket.prototype.send` after the page load never sees
-     * an RPC message (verified with runIde). Runs on a CEF thread; [ideFeatures] reads only settings and [remote].
+     * Installs the layout and the IDE bridge before the scripts of the page run. Reasons: the T3 client keeps the `send`
+     * function of its WebSocket when it creates the socket, so a patch of `WebSocket.prototype.send` after the page load
+     * never sees an RPC message (verified with runIde); T3 reads its media query for the sidebar when it starts.
+     * Runs on a CEF thread; [layout] and [ideFeatures] read only the target, settings and [remote].
      */
     private fun installBridgeEarly(url: String) {
         val serverOrigin = origin ?: return
         if (!url.startsWith("$serverOrigin/") || url.startsWith(serverOrigin + T3Session.PATH)) return
+        if (url.startsWith("$serverOrigin/pair")) return
+        layout?.let { execute(T3Layout.earlyScript(it)) }
         val features = ideFeatures()
         if (features.any) execute(T3IdeBridge.script(features) { expression -> pageQuery.inject(expression) })
     }

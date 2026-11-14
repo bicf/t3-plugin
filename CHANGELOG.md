@@ -23,6 +23,9 @@
 - "Toggle terminal drawer" and the "Terminal" panel open an IDE terminal in the workspace of the thread. The "Files" panel selects the workspace in the Project view.
 - The branch selector, "Changes vs …" and "Commit" of a thread open the IDE Git tools.
 - Settings: "Open conversations in editor tabs" and "Use the IDE tools in T3".
+- The "T3 Code" tool window shows only the T3 sidebar, and opens on the left. New threads, drafts and the T3 settings, pull requests and usage pages also open in editor tabs.
+- Editor tabs show the conversation without the T3 sidebars. "Toggle right panel" opens the right panel of T3 (browser, device, pull requests, side chat) in the new "T3 Workspace" tool window.
+- The "Diff" panel surface opens the IDE diff of the working tree. The "Terminal", "Files" and "Diff" items of the empty right panel open the IDE tools.
 
 ### Fixed
 - Copy buttons in the T3 web UI put the text on the system clipboard.

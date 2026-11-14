@@ -10,7 +10,7 @@ package com.bicf.t3plugin.toolWindow
  * - Every 250 ms the script reads `location.pathname`. A new value goes to the plugin as [ROUTE_PREFIX] + path.
  * - The thread title is the label of the breadcrumb button "Thread actions for <title>". A new title goes to the plugin
  *   as [TITLE_PREFIX] + title, at most 200 characters.
- * - [goHomeScript] clicks the "T3 Code home" link: the T3 router changes the page without a page load.
+ * - [homeScript] puts a path into the history and sends `popstate`: the T3 router changes the page without a page load.
  */
 internal object T3RouteWatch {
 
@@ -29,17 +29,22 @@ internal object T3RouteWatch {
         })();
     """.trimIndent()
 
-    /** Goes to the T3 home page with the router of the page. Without the home link, the page loads `/`. */
-    fun goHomeScript(): String =
-        "(function(){var a=document.querySelector('a[aria-label=\"T3 Code home\"]');if(a){a.click();}" +
-            "else{location.assign('/');}})();"
+    /**
+     * Shows [path] with the router of the page, without a page load. The tool window uses it to go back to
+     * [T3Routes.NAVIGATOR_PATH] after it opened a page in an editor tab. [path] must be a safe path.
+     */
+    fun homeScript(path: String): String {
+        require(T3Routes.isSafePath(path)) { "Not a safe path" }
+        return "(function(){if(location.pathname!=='$path'){history.pushState({},'','$path');" +
+            "dispatchEvent(new PopStateEvent('popstate',{state:history.state}));}})();"
+    }
 
     /**
-     * Goes back to the previous page of the router (the user left the thread of the tab with a click, which the router
-     * pushes). On the first history entry of the router, the page loads [path] instead. [path] must be a thread path.
+     * Goes back to the previous page of the router (the user left the page of the tab with a click, which the router
+     * pushes). On the first history entry of the router, the page loads [path] instead. [path] must be a tab page.
      */
     fun backScript(path: String): String {
-        require(T3Routes.threadRoute(path)?.path == path) { "Not a thread path" }
+        require(T3Routes.tabPage(path) != null) { "Not a tab page" }
         return "(function(){var s=history.state;if(s&&s.__TSR_index>0){history.back();}else{location.assign('$path');}})();"
     }
 }
