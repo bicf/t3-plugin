@@ -382,12 +382,13 @@ Prove con `runIde` (IU 2026.2.3, KDE Wayland, `WLToolkit`), home T3 isolata sull
 | Ctrl+C, Ctrl+Insert su una selezione; Shift+Delete nel composer | Appunti IDE con il testo selezionato | Uguale |
 | Selezione con il mouse nel messaggio utente | Selezione primaria Wayland e X11 invariate | Selezione primaria dell'IDE (Wayland) = testo selezionato |
 | Clic centrale nel composer, primaria X11 e Wayland diverse | Testo della primaria X11 | Testo della primaria Wayland dell'IDE; Ctrl+V incolla ancora gli appunti |
+| Prova a mano (2026-11-15): selezione nel messaggio utente, poi clic centrale in Konsole | — | Konsole incolla il testo selezionato nella pagina |
 | Pulsante "Copy message" nel box | — | Appunti IDE = testo originale del messaggio; per 1,2 s l'etichetta è "Copied" |
 | Pulsante del wrap, riga lunga | — | Una riga per riga del messaggio, con barra di scorrimento orizzontale; etichetta "Wrap lines" |
 
 Fatti:
 - I tasti Swing creati da script non arrivano a Chromium: la finestra della sandbox non riceve il focus su Wayland. Per questo la prova dei tasti controlla le azioni IDE nel contesto della pagina, poi usa i tasti DevTools.
-- Not verified: la lettura della selezione primaria da un'altra app Wayland (per esempio Konsole); una selezione in un campo password; Windows e macOS.
+- Not verified: una selezione in un campo password; Windows e macOS; una sessione Linux X11.
 
 ### Fase 4 – Qualità e CI
 
