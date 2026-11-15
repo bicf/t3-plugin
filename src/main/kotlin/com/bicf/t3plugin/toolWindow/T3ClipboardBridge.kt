@@ -22,13 +22,21 @@ import javax.imageio.ImageIO
  * - Paste: the script cancels each trusted `paste` event, asks the plugin for the IDE clipboard, then sends a new
  *   `paste` event with the IDE text or PNG image to the same element. When no handler takes that event,
  *   the script inserts the text with `insertText`. `navigator.clipboard.readText` also reads the IDE clipboard.
- * - A middle-click paste (X11 primary selection) keeps the native behavior.
  * - A clipboard without text or image pastes nothing.
+ * - Primary selection, only when the system has one (Linux, `primary = true`): the page has the same problem as
+ *   with the clipboard (Chromium writes and reads only the X11 primary selection, verified with runIde on Wayland).
+ *   - A selection in the page goes to the primary selection of the IDE 200 ms after the last change.
+ *     An empty selection and a selection in a password field change nothing.
+ *   - A middle-click paste (a trusted `paste` event less than 1 s after a middle-button press) gets the text of the
+ *     primary selection of the IDE, not the clipboard. A primary selection without text pastes nothing.
+ * - Without a primary selection (Windows, macOS), a middle-click paste keeps the native behavior.
  */
 internal object T3ClipboardBridge {
 
     const val COPY_PREFIX = "copy:"
     const val PASTE_PREFIX = "paste:"
+    const val SELECTION_PREFIX = "selection:"
+    const val PRIMARY_PREFIX = "primary:"
 
     private val REQUEST_ID = Regex("[0-9]{1,9}")
 
@@ -37,10 +45,11 @@ internal object T3ClipboardBridge {
 
     /**
      * The bridge script. [report] returns the JavaScript code that sends the value of a JavaScript expression
-     * to the plugin (see `JBCefJSQuery.inject`).
+     * to the plugin (see `JBCefJSQuery.inject`). [primary] is true when the system has a primary selection.
      */
-    fun script(report: (String) -> String): String = """
+    fun script(primary: Boolean = false, report: (String) -> String): String = """
         (function(){if(window.__t3ClipboardBridge)return;window.__t3ClipboardBridge=true;
+        var PRIMARY=$primary;
         var c=navigator.clipboard;
         if(!c){c={};try{Object.defineProperty(navigator,'clipboard',{value:c,configurable:true});}catch(e){return;}}
         var write=typeof c.write==='function'?c.write.bind(c):null;
@@ -53,15 +62,16 @@ internal object T3ClipboardBridge {
         var pending={},seq=0,lastMiddle=0;
         function bytes(b){return Uint8Array.from(atob(b),function(ch){return ch.charCodeAt(0);});}
         function text(b){return new TextDecoder().decode(bytes(b));}
-        function request(cb){var id=++seq;pending[id]=cb;var r='$PASTE_PREFIX'+id;${report("r")};}
+        function request(cb,middle){var id=++seq;pending[id]=cb;var r=(middle?'$PRIMARY_PREFIX':'$PASTE_PREFIX')+id;${report("r")};}
         window.__t3PasteReply=function(id,kind,b){var cb=pending[id];delete pending[id];if(cb)cb(kind,b);};
         c.readText=function(){return new Promise(function(ok){request(function(kind,b){ok(kind==='text'?text(b):'');});});};
         document.addEventListener('mousedown',function(e){if(e.button===1)lastMiddle=Date.now();},true);
         window.addEventListener('paste',function(e){
-          if(!e.isTrusted||Date.now()-lastMiddle<1000)return;
+          if(!e.isTrusted)return;
+          var middle=Date.now()-lastMiddle<1000;if(middle&&!PRIMARY)return;
           var target=e.target;e.preventDefault();e.stopImmediatePropagation();
           request(function(kind,b){
-            if(kind!=='text'&&kind!=='image')return;
+            if(kind!=='text'&&(middle||kind!=='image'))return;
             var t=target&&target.isConnected?target:document.activeElement;if(!t)return;
             if(t.focus)t.focus({preventScroll:true});
             var dt=new DataTransfer();
@@ -69,8 +79,12 @@ internal object T3ClipboardBridge {
             else dt.items.add(new File([bytes(b)],'image.png',{type:'image/png'}));
             var ev=new ClipboardEvent('paste',{clipboardData:dt,bubbles:true,cancelable:true,composed:true});
             if(t.dispatchEvent(ev)&&kind==='text')document.execCommand('insertText',false,text(b));
-          });
+          },middle);
         },true);
+        if(PRIMARY){var timer=0;
+          document.addEventListener('selectionchange',function(){clearTimeout(timer);timer=setTimeout(function(){
+            var a=document.activeElement;if(a&&a.tagName==='INPUT'&&a.type==='password')return;
+            var t=selected();if(t){${report("'$SELECTION_PREFIX' + t")};}},200);},true);}
         var copied=null;
         function selected(){var a=document.activeElement;
           if(a&&(a.tagName==='TEXTAREA'||a.tagName==='INPUT')&&typeof a.selectionStart==='number')

@@ -50,9 +50,28 @@ class T3ClipboardBridgeTest {
     fun `script sends copy and paste requests through the report code`() {
         val script = T3ClipboardBridge.script { expression -> "REPORT($expression)" }
         assertTrue(script.contains("REPORT('copy:' + t)"))
-        assertTrue(script.contains("var r='paste:'+id;REPORT(r)"))
+        assertTrue(script.contains("var r=(middle?'primary:':'paste:')+id;REPORT(r)"))
         assertTrue(script.contains("window.addEventListener('paste'"))
         assertTrue(script.contains("c.readText="))
+        assertTrue(script.contains("var PRIMARY=false;"))
+    }
+
+    @Test
+    fun `script with a primary selection sends the page selection`() {
+        val script = T3ClipboardBridge.script(primary = true) { expression -> "REPORT($expression)" }
+        assertTrue(script.contains("var PRIMARY=true;"))
+        assertTrue(script.contains("REPORT('selection:' + t)"))
+        assertTrue(script.contains("a.type==='password'"))
+    }
+
+    @Test
+    fun `message actions script marks the user message boxes`() {
+        val script = T3MessageActions.script()
+        assertTrue(script.contains("'[data-message-role=\"user\"]'"))
+        assertTrue(script.contains("button[aria-label=\"Copy message\"]:not([data-t3plugin-button])"))
+        assertTrue(script.contains("'Wrap lines'"))
+        assertTrue(script.contains("'Disable line wrap'"))
+        assertTrue(script.contains("NOWRAP='${T3MessageActions.NO_WRAP_ATTRIBUTE}'"))
     }
 
     @Test
