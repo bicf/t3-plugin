@@ -7,7 +7,11 @@ package com.bicf.t3plugin.toolWindow
  * (verified with DevTools). T3 shows its own "Copy message" button only under the box, when the mouse is on the row.
  *
  * Rules:
- * - The 2 buttons are on the left of the box, at the top. They show when the mouse is on the box or the focus is in it.
+ * - The 2 buttons are in the box, at the top right. They show when the mouse is on the box or the focus is in it.
+ *   The buttons float: the text of the first line goes around them, so they never cover the text. Their space stays
+ *   reserved when they are hidden. The box of T3 has a transparent background, so a button on the text would not hide it.
+ *   A float moves only the text after it: the script keeps the buttons before the text of the box.
+ *   Without line wrap, the text starts under the buttons: its scroll area never goes under them.
  * - "Copy message" clicks the "Copy message" button of T3, which copies the message text as the user wrote it.
  *   Without that button, the script copies the visible text of the box. For 1.2 s the button shows a check mark.
  * - "Disable line wrap" / "Wrap lines": the box wraps long lines (the T3 default), or shows each line on one row
@@ -23,7 +27,7 @@ internal object T3MessageActions {
     fun script(): String = """
         (function(){if(window.__t3MessageActions)return;window.__t3MessageActions=true;
         var ATTR='$ACTIONS_ATTRIBUTE',NOWRAP='$NO_WRAP_ATTRIBUTE',nowrap={};
-        var css='['+ATTR+']{position:absolute;top:0;right:100%;margin-right:4px;display:flex;gap:2px;opacity:0;transition:opacity .2s;}'+
+        var css='['+ATTR+']{float:right;position:relative;z-index:1;display:flex;gap:2px;margin:-6px -6px 2px 8px;opacity:0;transition:opacity .2s;}'+
           '[data-t3plugin-bubble]:hover>['+ATTR+'],[data-t3plugin-bubble]:focus-within>['+ATTR+']{opacity:1;}'+
           '@media (pointer:coarse){['+ATTR+']{opacity:1;}}'+
           '['+ATTR+'] button{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;padding:0;'+
@@ -54,13 +58,13 @@ internal object T3MessageActions {
           var bubble=body.closest('.bg-message')||body.parentElement;if(!bubble||!row.contains(bubble))return;
           var bar=bubble.querySelector(':scope>['+ATTR+']');
           if(!bar){bubble.setAttribute('data-t3plugin-bubble','');
-            if(getComputedStyle(bubble).position==='static')bubble.style.position='relative';
             bar=document.createElement('div');bar.setAttribute(ATTR,'');
             var c=button('Copy message','copy'),w=button('Disable line wrap','wrap');
             c.addEventListener('click',function(e){e.stopPropagation();copy(c);});
             w.addEventListener('click',function(e){e.stopPropagation();var r=rowOf(w);if(!r)return;
               var id=r.getAttribute('data-message-id');nowrap[id]=!nowrap[id];wrapState(r,w);});
-            bar.appendChild(c);bar.appendChild(w);bubble.appendChild(bar);}
+            bar.appendChild(c);bar.appendChild(w);}
+          if(!(bar.compareDocumentPosition(body)&Node.DOCUMENT_POSITION_FOLLOWING))bubble.insertBefore(bar,bubble.firstChild);
           wrapState(row,bar.lastChild);}
         var queued=false;
         function scan(){queued=false;addStyle();document.querySelectorAll('[data-message-role="user"]').forEach(attach);}

@@ -26,7 +26,7 @@
 - The "T3 Code" tool window shows only the T3 sidebar, and opens on the left. New threads, drafts and the T3 settings, pull requests and usage pages also open in editor tabs.
 - Editor tabs show the conversation without the T3 sidebars. "Toggle right panel" opens the right panel of T3 (browser, device, pull requests, side chat) in the new "T3 Workspace" tool window.
 - The "Diff" panel surface opens the IDE diff of the working tree. The "Terminal", "Files" and "Diff" items of the empty right panel open the IDE tools.
-- Each message of the user has "Copy message" and line wrap buttons on the left of its box.
+- Each message of the user has "Copy message" and line wrap buttons in its box, at the top right.
 
 ### Fixed
 - Copy buttons in the T3 web UI put the text on the system clipboard.
@@ -35,3 +35,5 @@
 - Linux: a selection in the T3 page goes to the primary selection, and a middle-click paste uses the primary selection of the desktop, not an old X11 value.
 - After the first pairing, links to other sites and copy buttons work without a page reload.
 - The tool window opens threads started from the CLI, with ids such as `mcp:1c760312-…`.
+- A click on the project in the breadcrumb of a conversation opens one draft tab, not several.
+- A tab that T3 redirects to another page without a click shows that page, and does not reload in a loop.

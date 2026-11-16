@@ -75,6 +75,14 @@ class T3ClipboardBridgeTest {
     }
 
     @Test
+    fun `message actions are in the box at the top right, before the text`() {
+        val script = T3MessageActions.script()
+        assertTrue(script.contains("{float:right;"))
+        assertTrue(script.contains("bubble.insertBefore(bar,bubble.firstChild)"))
+        assertTrue(!script.contains("right:100%"))
+    }
+
+    @Test
     fun `sidebar script targets only the overlay sidebar`() {
         val script = T3SidebarResize.script()
         assertTrue(script.contains("[data-slot=\"sidebar\"][data-mobile=\"true\"]"))

@@ -70,7 +70,8 @@ import javax.swing.JPanel
  *   Without that setting, it opens the newest thread of the project with the full web UI, as in version 0.0.3.
  * - Editor tab ([T3PageTarget.Tab]): the panel shows its page without the T3 sidebars. A click on another page opens
  *   that page in its own tab, and the panel goes back to its page. A draft tab becomes the tab of its thread when the
- *   user sends the first message. A settings tab closes when the user closes the settings.
+ *   user sends the first message. A settings tab closes when the user closes the settings. When T3 replaces the page
+ *   of the tab without a click (a redirect), the tab follows T3 and does not load its page again.
  *   Without a session, the panel asks the user to open the tool window.
  * - "T3 Workspace" tool window ([T3PageTarget.Panel]): the right panel of the page of a tab (see [T3WorkspacePanels]).
  * - Remote server (Settings): the panel never runs the CLI. Without a session, the user pastes a link from `t3 pair`.
@@ -261,7 +262,9 @@ internal class T3BrowserPanel(
                     execute(T3ClipboardBridge.replyScript(id, payload))
                 }
             }
-            value.startsWith(T3RouteWatch.ROUTE_PREFIX) -> if (phase == Phase.READY) onRoute(value.removePrefix(T3RouteWatch.ROUTE_PREFIX))
+            value.startsWith(T3RouteWatch.ROUTE_PREFIX) -> if (phase == Phase.READY) {
+                T3RouteWatch.parseRoute(value.removePrefix(T3RouteWatch.ROUTE_PREFIX))?.let(::onRoute)
+            }
             value.startsWith(T3RouteWatch.TITLE_PREFIX) -> if (phase == Phase.READY) onTitle(value.removePrefix(T3RouteWatch.TITLE_PREFIX))
             value.startsWith(T3IdeRequest.PREFIX) -> if (phase == Phase.READY) onIdeRequest(value.removePrefix(T3IdeRequest.PREFIX))
             value.startsWith(T3Layout.PREFIX) -> if (phase == Phase.READY) onLayoutMessage(value.removePrefix(T3Layout.PREFIX))
@@ -439,7 +442,8 @@ internal class T3BrowserPanel(
     }
 
     /** A new page path of the single-page app (see [T3RouteWatch]). */
-    private fun onRoute(path: String) {
+    private fun onRoute(route: T3RouteWatch.Route) {
+        val path = route.path
         pagePath = path
         val tabs = project.service<T3PageTabs>()
         when (val t = target) {
@@ -447,10 +451,11 @@ internal class T3BrowserPanel(
                 tabs.open(path)
                 execute(T3RouteWatch.homeScript(T3Routes.NAVIGATOR_PATH))
             }
-            is T3PageTarget.Tab -> onTabRoute(t.file, path, tabs)
+            is T3PageTarget.Tab -> onTabRoute(t.file, route, tabs)
             is T3PageTarget.Panel -> {
                 val page = T3Routes.tabPage(path) ?: return
-                if (page.key == t.file.page.key) return
+                // Without a click, T3 replaced the page of the panel: a page load would bring the same redirect again.
+                if (page.key == t.file.page.key || !route.pushed) return
                 tabs.open(path)
                 execute(T3RouteWatch.backScript(t.file.pagePath))
             }
@@ -462,9 +467,12 @@ internal class T3BrowserPanel(
      * - Same tab key: the tab keeps the new path (another settings section).
      * - Draft to thread: the draft became this thread.
      * - Settings to another page: the user closed the settings; the tab closes, and a thread opens in its own tab.
+     * - T3 replaced the page without a click (a redirect, for example a draft that T3 does not know): the tab follows
+     *   T3 (see [followRedirect]). A page load would bring the same redirect again, in a loop.
      * - Other pages open in their own tab, and the tab goes back to its page.
      */
-    private fun onTabRoute(file: T3PageFile, path: String, tabs: T3PageTabs) {
+    private fun onTabRoute(file: T3PageFile, route: T3RouteWatch.Route, tabs: T3PageTabs) {
+        val path = route.path
         val page = T3Routes.tabPage(path) ?: return
         val own = file.page
         when {
@@ -474,11 +482,25 @@ internal class T3BrowserPanel(
                 if (page.kind == T3Routes.PageKind.THREAD) tabs.open(path)
                 tabs.close(file)
             }
+            !route.pushed -> followRedirect(file, path, page, tabs)
             else -> {
                 tabs.open(path)
                 execute(T3RouteWatch.backScript(file.pagePath))
             }
         }
+    }
+
+    /**
+     * T3 shows [path] in place of the page of the tab. When another tab shows [page], that tab is selected and this tab
+     * closes; otherwise this tab becomes the tab of [path].
+     */
+    private fun followRedirect(file: T3PageFile, path: String, page: T3Routes.TabPage, tabs: T3PageTabs) {
+        if (tabs.find(page.key) == null) {
+            tabs.changePath(file, path)
+            return
+        }
+        tabs.open(path)
+        tabs.close(file)
     }
 
     private fun onTitle(title: String) {
