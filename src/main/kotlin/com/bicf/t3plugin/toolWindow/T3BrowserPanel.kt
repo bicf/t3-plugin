@@ -236,11 +236,11 @@ internal class T3BrowserPanel(
     }
 
     /**
-     * Marks [threadId] in the T3 sidebar of the tool window, or removes the mark when it is null (see [T3SidebarMark]).
+     * Marks [thread] in the T3 sidebar of the tool window, or removes the mark when it is null (see [T3SidebarMark]).
      * Only the tool window with editor tabs shows the mark. Call it on the EDT.
      */
-    fun markThread(threadId: String?) {
-        if (phase == Phase.READY && layout == T3Layout.Mode.NAVIGATOR) execute(T3SidebarMark.script(threadId))
+    fun markThread(thread: T3Routes.ThreadRoute?) {
+        if (phase == Phase.READY && layout == T3Layout.Mode.NAVIGATOR) execute(T3SidebarMark.script(thread))
     }
 
     /** The browser of an editor tab went on or off screen: the visit gate of the page follows it. */
@@ -456,7 +456,7 @@ internal class T3BrowserPanel(
         execute(T3MessageActions.script())
         val mode = layout
         if (mode != null) execute(T3Layout.script(mode, report)) else execute(T3SidebarResize.script())
-        if (mode == T3Layout.Mode.NAVIGATOR) execute(T3SidebarMark.script(project.service<T3PageTabs>().lastThreadId()))
+        if (mode == T3Layout.Mode.NAVIGATOR) execute(T3SidebarMark.script(project.service<T3PageTabs>().lastThreadRoute()))
         if (pageFile != null) execute(T3VisitGate.script(visitAllowed))
         execute(T3RouteWatch.script(report))
         val features = ideFeatures()

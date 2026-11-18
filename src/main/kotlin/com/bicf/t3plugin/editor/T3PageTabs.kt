@@ -49,16 +49,23 @@ class T3PageTabs(private val project: Project) {
 
     fun hasOpenTabs(): Boolean = openPageFiles().isNotEmpty()
 
-    fun lastThreadId(): String? = last?.takeIf { it in openPageFiles() }?.threadRoute?.threadId
+    fun lastThreadId(): String? = lastThreadRoute()?.threadId
+
+    /** The thread of the last selected T3 tab, when that tab is open and is not [closing]. */
+    fun lastThreadRoute(closing: VirtualFile? = null): T3Routes.ThreadRoute? =
+        last?.takeIf { it != closing && it in openPageFiles() }?.threadRoute
 
     private fun select(file: T3PageFile) {
         last = file
         updateSidebarMark()
     }
 
-    /** Marks the thread of [lastThreadId] in the sidebar of the "T3 Code" tool window, when the tool window is open. */
-    private fun updateSidebarMark() {
-        project.serviceIfCreated<T3ProjectScope>()?.browserPanel?.markThread(lastThreadId())
+    /**
+     * Marks the thread of [lastThreadRoute] in the sidebar of the "T3 Code" tool window, when the tool window is open.
+     * [closing] is a tab that closes now: the IDE can still list it in the open files.
+     */
+    private fun updateSidebarMark(closing: VirtualFile? = null) {
+        project.serviceIfCreated<T3ProjectScope>()?.browserPanel?.markThread(lastThreadRoute(closing))
     }
 
     /** Shows [title] on the tab of [file] and on its panel. The tab title is [T3PageFile.getPresentableName]. */
@@ -100,7 +107,7 @@ class T3PageTabs(private val project: Project) {
         override fun fileClosed(source: FileEditorManager, file: VirtualFile) {
             if (file !is T3PageFile) return
             project.service<T3WorkspacePanels>().onTabClosed(file)
-            project.service<T3PageTabs>().updateSidebarMark()
+            project.service<T3PageTabs>().updateSidebarMark(closing = file)
         }
     }
 }

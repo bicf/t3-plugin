@@ -15,8 +15,9 @@ package com.bicf.t3plugin.toolWindow
  * - "Disable line wrap" / "Wrap lines": the box wraps long lines (the T3 default), or shows each line on one row
  *   with a horizontal scroll bar. The state stays per message until the page loads again.
  * - "Edit in composer" puts the text of the message at the end of the composer and gives the focus to the composer.
- *   The text is the text that "Copy message" copies (the `text` prop of the React component), otherwise the visible
- *   text of the box. Each line break becomes a hard break (Shift+Enter), as when the user types the text. A draft in
+ *   The text is the text that "Copy message" copies: the `text` prop of the React component of that button (in T3 0.1.9,
+ *   9 levels above the button). The search stops at the first DOM element above the button, so it never reads the prop
+ *   of another component. Without the prop, the text is the visible text of the box. Each line break becomes a hard break (Shift+Enter), as when the user types the text. A draft in
  *   the composer stays: the text goes after it, after an empty line. The plugin sends nothing.
  *   T3 "Edit from here" is different: it reverts the conversation to that turn.
  * - A message without text (only attachments) has no "Copy message" button of T3, so it gets no buttons.
@@ -50,7 +51,8 @@ internal object T3MessageActions {
           row.querySelectorAll('[data-t3plugin-button="wrap"]').forEach(function(b){
             b.setAttribute('aria-pressed',off?'false':'true');label(b,off?'Wrap lines':'Disable line wrap');});}
         function propText(el){try{for(var k in el){if(k.indexOf('__reactFiber${'$'}')!==0)continue;
-          for(var f=el[k],i=0;f&&i<20;f=f.return,i++){var p=f.memoizedProps;if(p&&typeof p.text==='string')return p.text;}}}catch(x){}
+          for(var f=el[k],i=0;f&&i<30;f=f.return,i++){if(typeof f.type==='string'&&f.stateNode!==el)return null;
+            var p=f.memoizedProps;if(p&&typeof p.text==='string')return p.text;}}}catch(x){}
           return null;}
         function messageText(row){var t3=row.querySelector('button[aria-label="Copy message"]:not([data-t3plugin-button])');
           var t=t3?propText(t3):null;if(t!=null&&t.trim())return t;

@@ -2,6 +2,7 @@ package com.bicf.t3plugin.toolWindow
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -100,16 +101,43 @@ class T3ClipboardBridgeTest {
         val hidden = T3VisitGate.script(false)
         assertTrue(hidden.contains("window.__t3VisitGate(false);"))
         assertTrue(hidden.contains("indexOf('\"thread.visit\"')"))
-        assertTrue(hidden.contains("if(!shown&&isVisit(t)){held.push"))
+        assertTrue(hidden.contains("if(!shown){var v=visitOf(t);"))
         assertTrue(T3VisitGate.script(true).endsWith("window.__t3VisitGate(true);})();"))
     }
 
     @Test
-    fun `sidebar mark accepts only safe thread ids`() {
-        assertTrue(T3SidebarMark.script("mcp:1c760312-ab").endsWith("window.__t3SidebarMark('mcp:1c760312-ab');})();"))
-        assertTrue(T3SidebarMark.script("a');alert(1);('").endsWith("window.__t3SidebarMark(null);})();"))
+    fun `visit gate keeps one visit per thread and answers the old one`() {
+        val script = T3VisitGate.script(false)
+        assertTrue(script.contains("held[v.thread]={ws:ws,t:t,id:v.id}"))
+        assertTrue(script.contains("if(old){try{answer(old.ws,old.id);}"))
+        assertTrue(script.contains("exit:{_tag:'Success',value:{sequence:0}}"))
+        assertTrue(script.contains("if(s.partial)s.queue.push(t);else deliver(ws,t);"))
+    }
+
+    @Test
+    fun `visit gate keeps the stored local visit times while the page is hidden`() {
+        val script = T3VisitGate.script(false)
+        assertTrue(script.contains("UI='${T3VisitGate.UI_STATE_KEY}'"))
+        assertTrue(script.contains("S.setItem=function(k,v){if(!shown&&k===UI)"))
+        assertTrue(script.contains("dbg('local saved')"))
+    }
+
+    @Test
+    fun `sidebar mark uses the full key and only safe ids`() {
+        val env = "6de4d82c-36b7-49ea-afd8-b194379ae9aa"
+        val route = T3Routes.ThreadRoute(env, "mcp:1c760312-ab")
+        assertEquals("$env:mcp:1c760312-ab", T3SidebarMark.key(route))
+        assertTrue(T3SidebarMark.script(route).endsWith("window.__t3SidebarMark('$env:mcp:1c760312-ab');})();"))
+        assertTrue(T3SidebarMark.script(route).contains("li.getAttribute('data-thread-item')===cur"))
+        assertNull(T3SidebarMark.key(T3Routes.ThreadRoute(env, "a');alert(1);('")))
+        assertNull(T3SidebarMark.key(T3Routes.ThreadRoute("x'y", "t1")))
         assertTrue(T3SidebarMark.script(null).endsWith("window.__t3SidebarMark(null);})();"))
-        assertTrue(T3SidebarMark.script(null).contains("li[data-thread-item]"))
+    }
+
+    @Test
+    fun `edit reads the text prop only inside the copy button component`() {
+        val script = T3MessageActions.script()
+        assertTrue(script.contains("if(typeof f.type==='string'&&f.stateNode!==el)return null;"))
     }
 
     @Test

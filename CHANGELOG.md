@@ -39,5 +39,5 @@
 - The tool window opens threads started from the CLI, with ids such as `mcp:1c760312-…`.
 - A click on the project in the breadcrumb of a conversation opens one draft tab, not several.
 - A tab that T3 redirects to another page without a click shows that page, and does not reload in a loop.
-- A thread keeps its unread state ("Done", "Failed") when its run completes while its editor tab is in the background. The tab marks the thread as read when it shows on screen.
+- A thread keeps its unread state ("Done", "Failed") when its run completes while its editor tab is in the background. The tab marks the thread as read when it shows on screen. A hidden tab sends at most one "thread visited" command per thread.
 - The message box of the user has no plugin buttons: they never cover the text.
