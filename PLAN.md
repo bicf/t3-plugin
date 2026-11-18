@@ -462,8 +462,12 @@ Fatti:
 3. Imposta `PUBLISH_TOKEN`, `CERTIFICATE_CHAIN`, `PRIVATE_KEY` e `PRIVATE_KEY_PASSWORD` per `publishPlugin` (gli stessi secret di `release.yml`).
 4. Pubblica prima nel canale `beta` (`PUBLISH_CHANNEL=beta`), poi nel canale `default` (nessun `PUBLISH_CHANNEL`).
    `release.yml` pubblica una GitHub pre-release nel canale `beta` e una release normale nel canale `default`.
+5. Una versione pubblicata nel canale `beta` va nel canale `default` solo con un numero di versione nuovo: il Marketplace accetta ogni versione una sola volta, in qualsiasi canale.
+   Se la versione del tag è già sul Marketplace (per esempio una pre-release diventata release), `release.yml` salta la pubblicazione, l'upload dell'asset e la PR del changelog.
 
-Stato (2026-11-18): il punto 1 è fatto. La chiave cifrata e il certificato self-signed (10 anni) sono fuori dal repository, in `~/.config/t3-plugin-signing/`.
+Stato (2026-11-18):
+- I punti 1 e 3 sono fatti. La chiave cifrata e il certificato self-signed (10 anni) sono fuori dal repository, in `~/.config/t3-plugin-signing/`. I 4 secret sono nel repository GitHub `bicf/t3-plugin`.
+- La prima versione sul Marketplace è la 0.2.4, caricata a mano nel canale `default`. La 0.2.3 non va sul Marketplace.
 
 ## Rischi
 
