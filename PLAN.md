@@ -412,7 +412,7 @@ Fatti:
 - Ogni pagina T3 scrive in `localStorage` tutte le sue bozze: l'ultima pagina che scrive cancella le bozze create in un'altra pagina dopo il suo caricamento (limite di T3, not verified con più tab aperte a lungo).
 - Not verified: la gara sulla macchina dell'utente (la prova la simula con un ritardo); un redirect nel tool window "T3 Workspace".
 
-Stato (2026-11-18), versione 0.2.3: pulsanti nella riga azioni dei messaggi utente, "Edit in composer", segno del thread nella sidebar, stato non letto dei thread nelle tab in background. `./gradlew test`: 110 test, 0 errori, 1 saltato. `T3VisitGateScriptTest` esegue lo script del gate in Node (`src/test/resources/js/visit-gate-harness.js`); senza `node` i suoi 8 test sono saltati.
+Stato (2026-11-18), versione 0.2.3: pulsanti nella riga azioni dei messaggi utente, "Edit in composer", segno del thread nella sidebar, stato non letto dei thread nelle tab in background. `./gradlew test`: 114 test, 0 errori, 1 saltato. `T3VisitGateScriptTest` esegue lo script del gate in Node (`src/test/resources/js/visit-gate-harness.js`); senza `node` i suoi 8 test sono saltati. `T3SidebarMarkScriptTest` esegue lo script del segno in Node (`src/test/resources/js/sidebar-mark-harness.js`, 4 test).
 Server T3 0.1.9 isolato (home nella scratchpad, porta 3898), progetto `demo`, modello `claude-haiku-5-5`, run avviate con `t3 thread send`.
 Prove 1: Chrome headless (CDP) con gli script generati dal plugin. Prove 2: `runIde` (IU 2026.2.3, Wayland), tab e split comandati da uno script Groovy della sandbox, stato delle pagine letto con DevTools (porta 9223).
 
@@ -433,6 +433,7 @@ Prove 1: Chrome headless (CDP) con gli script generati dal plugin. Prove 2: `run
 | Gate (Node, WebSocket finto): 2 visite dello stesso thread nascosto | — | La prima riceve `Exit` di successo dopo l'ultima parte del messaggio in arrivo; la seconda resta trattenuta |
 | Gate (Node): salvataggio di `t3code:ui-state:v1` con pagina nascosta | — | Tempi di visita salvati invariati (anche con un tempo più vecchio o un thread assente), altri campi aggiornati; alla visibilità il gate salva i tempi trattenuti; se il salvataggio fallisce, li tiene per la visibilità successiva |
 | Gate (Node): pagina di nuovo nascosta, socket chiuso | — | La visita trattenuta va all'ultimo socket aperto; senza socket aperto il gate scarta la visita (`dropped`) |
+| Segno sidebar (Node, sidebar finta) | — | Solo la riga con la chiave completa; lo spostamento scorre la riga una volta; una riga ricreata riprende il segno in un frame; `null` toglie il segno |
 
 Fatti:
 - La risposta del server a `thread.visit` è `{"_tag":"Exit","requestId":<id>,"exit":{"_tag":"Success","value":{"sequence":<n>}}}`.

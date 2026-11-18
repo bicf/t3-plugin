@@ -73,11 +73,11 @@
   <rect class="ide" x="394" y="94" width="732" height="34" rx="4"/>
   <rect class="t3" x="400" y="98" width="220" height="26" rx="4"/>
   <text class="label" x="410" y="116">T3 editor tab: "thread title"</text>
-  <rect class="obj" x="626" y="98" width="150" height="26" rx="4"/>
-  <text class="label" x="636" y="116">T3 tab: "New thread"</text>
-  <rect class="ide" x="782" y="98" width="120" height="26" rx="4"/>
-  <text class="small" x="794" y="116">Main.kt (IDE file)</text>
-  <text class="code" x="910" y="116">T3PageFile · T3PageEditor</text>
+  <rect class="obj" x="626" y="98" width="176" height="26" rx="4"/>
+  <text class="label" x="636" y="116">T3 tab: "New T3 thread"</text>
+  <rect class="ide" x="808" y="98" width="120" height="26" rx="4"/>
+  <text class="small" x="820" y="116">Main.kt (IDE file)</text>
+  <text class="code" x="936" y="116">T3PageFile · T3PageEditor</text>
   <text class="name" x="394" y="146">editor tab bar</text>
   <text class="note" x="490" y="146">one tab per thread, draft (/draft/…) or app page (settings, projects, pull requests, usage) · T3PageTabs</text>
 
