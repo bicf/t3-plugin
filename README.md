@@ -44,5 +44,12 @@ Settings | Tools | T3 Code:
 - **Open conversations in editor tabs:** on by default. Off: the tool window shows the full T3 web UI, as in version 0.0.3.
 - **Use the IDE tools in T3:** on by default. Off: T3 uses its own file viewer, diff, terminal and Git panels.
 
+## License
+
+T3 Code Host (Unofficial) – Copyright 2026 Ivan Buttinoni.
+
+The plugin is free software under the [GNU General Public License v3.0 only](LICENSE) (SPDX: `GPL-3.0-only`).
+A copy or a modified version must keep the copyright and the [NOTICE](NOTICE) file, and must use the same license.
+
 ---
 Plugin based on the [IntelliJ Platform Plugin Template](https://github.com/JetBrains/intellij-platform-plugin-template).
