@@ -56,9 +56,10 @@ jobs:
 
           ./gradlew patchChangelog --release-note-file=$RELEASE_NOTE
 
-      # Publish the plugin to JetBrains Marketplace
+      # Publish the plugin to JetBrains Marketplace: a GitHub pre-release goes to the "beta" channel, a release to "default"
       - name: Publish Plugin
         env:
+          PUBLISH_CHANNEL: ${{ github.event.release.prerelease && 'beta' || 'default' }}
           PUBLISH_TOKEN: ${{ secrets.PUBLISH_TOKEN }}
           CERTIFICATE_CHAIN: ${{ secrets.CERTIFICATE_CHAIN }}
           PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
