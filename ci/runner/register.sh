@@ -7,6 +7,8 @@ cd "$(dirname "$0")"
 REPO=bicf/t3-plugin
 
 export RUNNER_UID="$(id -u)" RUNNER_GID="$(id -g)"
+# compose.yaml declares the Gradle volume as external: Compose does not create it. The command keeps an existing volume.
+docker volume create t3-ci-gradle >/dev/null
 docker compose build
 
 # The registration token expires after one hour and is used only here.

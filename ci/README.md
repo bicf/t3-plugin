@@ -18,7 +18,7 @@ The volumes keep all the downloads between the jobs, also when the container is 
 
 | Volume | Content |
 |---|---|
-| `t3-ci-gradle` | Gradle home: Gradle distribution, dependencies, IDEs, Java 25 toolchain, build cache |
+| `t3-ci-gradle` | Gradle home: Gradle distribution, dependencies, IDEs, Java 25 toolchain, build cache. External volume: `register.sh` creates it, Compose does not |
 | `t3-ci-plugin-verifier` | Plugin Verifier home: the Marketplace plugins of the verified IDEs (1.4 GB) |
 | `t3-ci-work` | job workspaces, with the Gradle project caches (`.gradle`, `.intellijPlatform`, `.kotlin`) |
 | `t3-ci-runner-state` | runner registration (`.runner`, `.credentials`) |
@@ -44,7 +44,7 @@ Requirements: Docker with Compose, and `gh` with admin access to `bicf/t3-plugin
 - Go back to GitHub-hosted runners: `gh variable delete CI_RUNS_ON --repo bicf/t3-plugin`.
 - Update the image: `docker compose -f ci/runner/compose.yaml up -d --build`. The registration stays in its volume.
 - Remove the runner: stop the container, delete it in the repository settings (Actions → Runners), then `docker volume rm t3-ci-runner-state`.
-- Empty the caches: stop the container, then `docker volume rm t3-ci-gradle t3-ci-plugin-verifier t3-ci-work`. The next job downloads everything again.
+- Empty the caches: stop the container, then `docker volume rm t3-ci-gradle t3-ci-plugin-verifier t3-ci-work` and `docker volume create t3-ci-gradle`. The next job downloads everything again.
 
 ## Local CI
 

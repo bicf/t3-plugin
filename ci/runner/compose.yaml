@@ -28,8 +28,11 @@ services:
       - runner-state:/runner-state
 
 volumes:
+  # External: register.sh creates it. ci/local.sh created it with "docker run" before the runner existed,
+  # and Compose warns about a volume it did not create.
   gradle:
     name: t3-ci-gradle
+    external: true
   plugin-verifier:
     name: t3-ci-plugin-verifier
   work:
