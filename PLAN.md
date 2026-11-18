@@ -458,8 +458,10 @@ Fatti:
 
 1. Crea un certificato e configura `signPlugin`.
 2. Carica a mano la prima versione sul Marketplace.
-3. Imposta `ORG_GRADLE_PROJECT_intellijPlatformPublishingToken` per `publishPlugin`.
-4. Pubblica prima nel canale `beta`, poi nel canale `default`.
+3. Imposta `PUBLISH_TOKEN`, `CERTIFICATE_CHAIN`, `PRIVATE_KEY` e `PRIVATE_KEY_PASSWORD` per `publishPlugin` (gli stessi secret di `release.yml`).
+4. Pubblica prima nel canale `beta` (`PUBLISH_CHANNEL=beta`), poi nel canale `default` (nessun `PUBLISH_CHANNEL`).
+
+Stato (2026-11-18): il punto 1 è fatto. La chiave cifrata e il certificato self-signed (10 anni) sono fuori dal repository, in `~/.config/t3-plugin-signing/`.
 
 ## Rischi
 
