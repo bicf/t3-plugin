@@ -7,6 +7,7 @@ package com.bicf.t3plugin.toolWindow
  * Under the box, T3 has an action row: time, "Edit from here" (only for a turn with a checkpoint), "Copy message" and
  * "Copy prompt link". The row shows when the mouse is on the message or the focus is in it (verified in the web bundle).
  * T3 can render the row twice (on the left of the box in a wide page and under the box): each copy gets the buttons.
+ * The T3 hover rule of the row is in `@media (hover: hover)`: in the IDE browser it applies through [T3PointerMedia].
  *
  * Rules:
  * - The 2 buttons go at the end of the button group of T3 that holds "Copy message". They take the classes of that

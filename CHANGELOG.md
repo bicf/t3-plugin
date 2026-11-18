@@ -41,3 +41,4 @@
 - A tab that T3 redirects to another page without a click shows that page, and does not reload in a loop.
 - A thread keeps its unread state ("Done", "Failed") when its run completes while its editor tab is in the background. The tab marks the thread as read when it shows on screen. A hidden tab holds the last "thread visited" command of each thread and sends it when the tab shows.
 - The message box of the user has no plugin buttons: they never cover the text.
+- The hover styles of T3 work in the IDE browser. Before, the browser reported no mouse, so the action row under a message of the user showed only with the focus in the message, and rows and buttons had no hover color. The `matchMedia` of the page gives the same answer, so T3 reports a hover device to its tool views.

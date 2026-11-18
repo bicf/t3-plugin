@@ -81,6 +81,7 @@ import javax.swing.JPanel
  * - The IDE colors go to the page at each page load, Look and Feel change and color scheme change (see [T3ThemeSync]).
  * - Copy and paste in the page use the IDE clipboard through the plugin (see [T3ClipboardBridge]). On Linux, the
  *   selection and the middle-click paste use the primary selection of the IDE.
+ * - The hover styles of T3 work with the mouse, although the browser reports no hover device (see [T3PointerMedia]).
  * - The action row of each message of the user gets "Wrap lines" and "Edit in composer" buttons (see [T3MessageActions]).
  * - Editor tab: the page sends the "thread visited" command only while the tab is on screen (see [T3VisitGate]).
  *   A thread that completes in a tab in the background keeps its unread state.
@@ -454,6 +455,7 @@ internal class T3BrowserPanel(
         val report = { expression: String -> pageQuery.inject(expression) }
         execute(linkBridgeScript())
         execute(T3ClipboardBridge.script(CopyPasteManager.getInstance().isSystemSelectionSupported, report))
+        execute(T3PointerMedia.script())
         execute(T3MessageActions.script())
         val mode = layout
         if (mode != null) execute(T3Layout.script(mode, report)) else execute(T3SidebarResize.script())
