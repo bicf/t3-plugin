@@ -9,14 +9,15 @@
         <p>Shows the <a href="https://t3.codes">T3 Code</a> web UI in JetBrains IDEs. Features:</p>
         <ul>
             <li>The T3 sidebar in the "T3 Code" tool window, and each conversation in an editor tab.</li>
-            <li>File links and diffs of T3 open in the IDE editor.</li>
-            <li>The T3 terminal and Git actions use the IDE terminal and Git, when these plugins are installed.</li>
-            <li>"Ask T3 About Selection" in the editor context menu sends the selected code to T3.</li>
+            <li>Diffs of T3 open in the IDE editor.</li>
+            <li>With a local server, file links open in the IDE editor, and the T3 terminal and Git actions use the IDE terminal and Git, when these plugins are installed.</li>
+            <li>With a local server, "Ask T3 About Selection" in the editor context menu sends the selected code to T3.</li>
             <li>A status bar widget shows the state of the T3 Code server.</li>
-            <li>A remote T3 server works too: paste a pairing link from <code>t3 pair</code>.</li>
         </ul>
-        <p>The plugin connects to a running T3 Code server on this machine, or starts <code>t3 serve</code> when no server runs.
+        <p>Local server: the plugin connects to a running T3 Code server on this machine, or starts <code>t3 serve</code> when no server runs.
         It requires the <code>t3</code> CLI.</p>
+        <p>Remote server: paste a pairing link from <code>t3 pair</code>. The plugin does not need the <code>t3</code> CLI.
+        File links, the terminal and Git stay on the remote machine.</p>
     ]]></description>
 
     <depends>com.intellij.modules.platform</depends>
