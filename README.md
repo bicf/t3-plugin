@@ -48,7 +48,7 @@ Settings | Tools | T3 Code:
 
 T3 Code Host (Unofficial) – Copyright 2026 Ivan Buttinoni.
 
-The plugin is free software under the [GNU General Public License v3.0](LICENSE), or any later version.
+The plugin is free software under the [GNU General Public License v3.0 only](LICENSE) (SPDX: `GPL-3.0-only`).
 A copy or a modified version must keep the copyright and the [NOTICE](NOTICE) file, and must use the same license.
 
 ---
