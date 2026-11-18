@@ -412,7 +412,7 @@ Fatti:
 - Ogni pagina T3 scrive in `localStorage` tutte le sue bozze: l'ultima pagina che scrive cancella le bozze create in un'altra pagina dopo il suo caricamento (limite di T3, not verified con più tab aperte a lungo).
 - Not verified: la gara sulla macchina dell'utente (la prova la simula con un ritardo); un redirect nel tool window "T3 Workspace".
 
-Stato (2026-11-18), versione 0.2.3: pulsanti nella riga azioni dei messaggi utente, "Edit in composer", segno del thread nella sidebar, stato non letto dei thread nelle tab in background. `./gradlew test`: 102 test, 0 errori, 1 saltato.
+Stato (2026-11-18), versione 0.2.3: pulsanti nella riga azioni dei messaggi utente, "Edit in composer", segno del thread nella sidebar, stato non letto dei thread nelle tab in background. `./gradlew test`: 107 test, 0 errori, 1 saltato. `T3VisitGateScriptTest` esegue lo script del gate in Node (`src/test/resources/js/visit-gate-harness.js`); senza `node` i suoi 5 test sono saltati.
 Server T3 0.1.9 isolato (home nella scratchpad, porta 3898), progetto `demo`, modello `claude-haiku-5-5`, run avviate con `t3 thread send`.
 Prove 1: Chrome headless (CDP) con gli script generati dal plugin. Prove 2: `runIde` (IU 2026.2.3, Wayland), tab e split comandati da uno script Groovy della sandbox, stato delle pagine letto con DevTools (porta 9223).
 

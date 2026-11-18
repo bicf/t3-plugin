@@ -82,8 +82,9 @@ import javax.swing.JPanel
  * - Copy and paste in the page use the IDE clipboard through the plugin (see [T3ClipboardBridge]). On Linux, the
  *   selection and the middle-click paste use the primary selection of the IDE.
  * - The action row of each message of the user gets "Wrap lines" and "Edit in composer" buttons (see [T3MessageActions]).
- * - Editor tab and "T3 Workspace": the page sends the "thread visited" command only while the tab is on screen
- *   (see [T3VisitGate]). A thread that completes in a tab in the background keeps its unread state.
+ * - Editor tab: the page sends the "thread visited" command only while the tab is on screen (see [T3VisitGate]).
+ *   A thread that completes in a tab in the background keeps its unread state.
+ * - "T3 Workspace": the page never sends the "thread visited" command; the tab of the same thread sends it.
  * - Tool window with editor tabs: the sidebar marks the thread of the selected T3 tab (see [T3SidebarMark]).
  * - Without editor tabs, in a narrow tool window, the left sidebar of the page gets a drag handle (see [T3SidebarResize]).
  * - With "Use IDE tools", file links, "Open in …", diffs, the terminal and Git use the IDE (see [T3IdeBridge]).
@@ -133,7 +134,10 @@ internal class T3BrowserPanel(
     private var initialTab: String? = null
     private var job: Job? = null
 
-    /** True while the browser of an editor tab is on screen. The CEF threads read it (see [T3VisitGate]). */
+    /**
+     * True while the browser of an editor tab is on screen: the page may send the "thread visited" command
+     * (see [T3VisitGate]). Only an editor tab sets it; for the other targets it stays false. The CEF threads read it.
+     */
     @Volatile
     private var pageShown = false
 
@@ -250,9 +254,6 @@ internal class T3BrowserPanel(
         pageShown = shown
         if (phase == Phase.READY) execute(T3VisitGate.script(shown))
     }
-
-    /** True when the page of this panel may send the "thread visited" command now (see [T3VisitGate]). */
-    private val visitAllowed: Boolean get() = target is T3PageTarget.Tab && pageShown
 
     /** Loads the page again; before the page is ready, connects again. Call it on the EDT. */
     fun reload() {
@@ -457,7 +458,7 @@ internal class T3BrowserPanel(
         val mode = layout
         if (mode != null) execute(T3Layout.script(mode, report)) else execute(T3SidebarResize.script())
         if (mode == T3Layout.Mode.NAVIGATOR) execute(T3SidebarMark.script(project.service<T3PageTabs>().lastThreadRoute()))
-        if (pageFile != null) execute(T3VisitGate.script(visitAllowed))
+        if (pageFile != null) execute(T3VisitGate.script(pageShown))
         execute(T3RouteWatch.script(report))
         val features = ideFeatures()
         if (features.any) execute(T3IdeBridge.script(features, report))
@@ -653,7 +654,7 @@ internal class T3BrowserPanel(
         if (!url.startsWith("$serverOrigin/") || url.startsWith(serverOrigin + T3Session.PATH)) return
         if (url.startsWith("$serverOrigin/pair")) return
         layout?.let { execute(T3Layout.earlyScript(it)) }
-        if (pageFile != null) execute(T3VisitGate.script(visitAllowed))
+        if (pageFile != null) execute(T3VisitGate.script(pageShown))
         val features = ideFeatures()
         if (features.any) execute(T3IdeBridge.script(features) { expression -> pageQuery.inject(expression) })
     }

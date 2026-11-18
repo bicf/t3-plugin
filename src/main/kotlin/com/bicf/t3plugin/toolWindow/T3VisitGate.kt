@@ -28,8 +28,9 @@ package com.bicf.t3plugin.toolWindow
  *   The page of "T3 Workspace" never shows for the gate: the tab of the same thread sends the visit.
  * - A held request goes to its socket, or to the last socket of the page when its socket closed. The T3 client ignores
  *   the answer to a request of a closed socket. Without an open socket, the gate drops the request.
- * - `window.__t3VisitLog` keeps the last 20 gate events (held, superseded, sent, dropped, local held, local saved;
- *   never content) for diagnosis.
+ * - When a saved value is not valid JSON, the gate saves it unchanged (a lost save is worse) and logs `local error`.
+ * - `window.__t3VisitLog` keeps the last 20 gate events (held, superseded, sent, dropped, local held, local saved,
+ *   local error; never content) for diagnosis.
  */
 internal object T3VisitGate {
 
@@ -69,7 +70,7 @@ internal object T3VisitGate {
             if(nm&&typeof nm==='object')Object.keys(nm).forEach(function(id){if(!newer(nm[id],om[id]))return;
               if(newer(nm[id],localHeld[id]))localHeld[id]=nm[id];
               if(om[id]===undefined)delete nm[id];else nm[id]=om[id];kept=true;});
-            if(kept){v=JSON.stringify(n);dbg('local held');}}}catch(x){}}
+            if(kept){v=JSON.stringify(n);dbg('local held');}}}catch(x){dbg('local error');}}
           return setItem.call(this,k,v);};
         function release(){var h=held;held={};Object.keys(h).forEach(function(k){var x=h[k];
             var ws=x.ws.readyState===1?x.ws:(last&&last.readyState===1?last:null);

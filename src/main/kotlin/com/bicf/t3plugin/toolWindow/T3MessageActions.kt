@@ -15,10 +15,12 @@ package com.bicf.t3plugin.toolWindow
  * - "Disable line wrap" / "Wrap lines": the box wraps long lines (the T3 default), or shows each line on one row
  *   with a horizontal scroll bar. The state stays per message until the page loads again.
  * - "Edit in composer" puts the text of the message at the end of the composer and gives the focus to the composer.
- *   The text is the text that "Copy message" copies: the `text` prop of the React component of that button (in T3 0.1.9,
- *   9 levels above the button). The search stops at the first DOM element above the button, so it never reads the prop
- *   of another component. Without the prop, the text is the visible text of the box. Each line break becomes a hard break (Shift+Enter), as when the user types the text. A draft in
- *   the composer stays: the text goes after it, after an empty line. The plugin sends nothing.
+ *   The text is the text that "Copy message" copies: the `text` prop of the React component of that button (in
+ *   T3 0.1.9, 9 levels above the button). The search stops at the first DOM element above the button, so it never
+ *   reads the prop of another component. Without the prop, the text is the visible text of the box.
+ *   Each line break becomes a hard break (Shift+Enter), as when the user types the text. A draft in the composer
+ *   stays: the text goes after it, after an empty line. If the TipTap editor is missing or rejects the insert, the
+ *   script types the text with `insertText`. The plugin sends nothing.
  *   T3 "Edit from here" is different: it reverts the conversation to that turn.
  * - A message without text (only attachments) has no "Copy message" button of T3, so it gets no buttons.
  */
@@ -63,7 +65,7 @@ internal object T3MessageActions {
           var el=document.querySelector('$COMPOSER_SELECTOR');if(!el)return;var ed=el.editor;
           if(ed&&ed.chain&&!ed.isDestroyed){var nodes=inline(text);
             if(!ed.isEmpty)nodes=[{type:'hardBreak'},{type:'hardBreak'}].concat(nodes);
-            ed.chain().focus('end').insertContent(nodes).focus('end').run();return;}
+            if(ed.chain().focus('end').insertContent(nodes).focus('end').run()!==false)return;}
           el.focus();try{var s=window.getSelection(),r=document.createRange();r.selectNodeContents(el);r.collapse(false);
             s.removeAllRanges();s.addRange(r);}catch(x){}
           document.execCommand('insertText',false,text);}

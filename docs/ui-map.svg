@@ -79,7 +79,7 @@
   <text class="small" x="794" y="116">Main.kt (IDE file)</text>
   <text class="code" x="910" y="116">T3PageFile · T3PageEditor</text>
   <text class="name" x="394" y="146">editor tab bar</text>
-  <text class="note" x="490" y="146">one tab per thread, draft (/draft/…) or app page (settings, pull requests, usage) · T3PageTabs</text>
+  <text class="note" x="490" y="146">one tab per thread, draft (/draft/…) or app page (settings, projects, pull requests, usage) · T3PageTabs</text>
 
   <!-- conversation page -->
   <rect class="t3" x="394" y="156" width="732" height="670" rx="6"/>
