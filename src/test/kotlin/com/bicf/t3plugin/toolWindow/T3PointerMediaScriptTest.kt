@@ -90,6 +90,22 @@ class T3PointerMediaScriptTest {
     }
 
     @Test
+    fun `matchMedia answers as for a mouse`() {
+        assertEquals("true", results["jsHover"])
+        assertEquals("true", results["jsHoverCompact"])
+        assertEquals("true", results["jsPointerFine"])
+        assertEquals("false", results["jsHoverNone"])
+        assertEquals("false", results["jsPointerNone"])
+    }
+
+    @Test
+    fun `matchMedia sends the other media queries to the browser`() {
+        assertEquals("false", results["jsPointerCoarse"])
+        assertEquals("true", results["jsWidth"])
+        assertEquals("false", results["jsCombined"])
+    }
+
+    @Test
     fun `the script installs once and does not scan a sheet twice`() {
         assertEquals("(hover: hover)", results["secondRunSkipsSeenSheets"])
     }

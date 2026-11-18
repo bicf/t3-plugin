@@ -43,7 +43,14 @@ class MutationObserver {
   constructor(f) { this.f = f; observer = this; }
   observe(target, options) { this.target = target; this.options = options; }
 }
+// The browser of the IDE: no hover device, so only 'all' and the width query match.
+const browserMatches = { 'all': true, '(min-width: 0px)': true };
 const ctx = { document, MutationObserver, CSSMediaRule, WeakSet, requestAnimationFrame: (f) => f() };
+ctx.matchMedia = function (query) {
+  // As in Chromium, matchMedia needs the window as `this` (inside the vm context, the window is a proxy of ctx).
+  if (!this || this.document !== document) throw new TypeError('Illegal invocation');
+  return { media: query, matches: browserMatches[query] === true };
+};
 ctx.window = ctx;
 vm.createContext(ctx);
 const source = fs.readFileSync(scriptFile, 'utf8');
@@ -61,6 +68,16 @@ out('width', width.media.mediaText);
 out('nested', `${nested.media.mediaText}|${nested.cssRules[0].media.mediaText}`);
 out('layered', layered.media.mediaText);
 out('observesSubtree', observer.target === document.documentElement && observer.options.subtree === true);
+
+const mm = (query) => ctx.matchMedia(query).matches;
+out('jsHover', mm('(hover: hover)'));
+out('jsHoverCompact', mm('(HOVER:hover)'));
+out('jsPointerFine', mm('(pointer: fine)'));
+out('jsHoverNone', mm('(hover: none)'));
+out('jsPointerNone', mm('(pointer: none)'));
+out('jsPointerCoarse', mm('(pointer: coarse)'));
+out('jsWidth', mm('(min-width: 0px)'));
+out('jsCombined', mm('(hover: hover) and (min-width: 0px)'));
 
 sheets.push(new Sheet([later]));
 observer.f([]);

@@ -15,7 +15,11 @@ package com.bicf.t3plugin.toolWindow
  *   `(pointer: coarse)` and `(any-pointer: coarse)` are already false, as for a mouse.
  * - Style sheets that T3 adds later (lazy chunks, a theme change) get the same change.
  * - Style sheets of another origin cannot be read and stay as they are.
- * - The JavaScript `matchMedia` of the page is not changed: T3 still reports `hover: false` in its device capabilities.
+ * - The JavaScript `matchMedia` of the page gives the same answer for the same media texts (spaces and case do not
+ *   matter): T3 then reports `hover: true` in the device capabilities of a tool view. The answer never changes, so
+ *   a change listener on it never runs. Other media texts go to the browser as before.
+ * - A `matchMedia` call before the script runs (during the page load) still gets the answer of the browser.
+ *   T3 0.1.9 reads `(hover: hover)` only when it shows a tool view, after the page load.
  */
 internal object T3PointerMedia {
 
@@ -27,9 +31,14 @@ internal object T3PointerMedia {
 
     fun script(): String {
         fun map(values: List<String>) = values.joinToString(",") { "'$it':1" }
+        fun compact(values: List<String>) = values.joinToString(",") { "'${it.replace(" ", "")}':1" }
         return """
             (function(){if(window.__t3PointerMedia)return;window.__t3PointerMedia=true;
             var ON={${map(MOUSE_TRUE)}},OFF={${map(MOUSE_FALSE)}},seen=new WeakSet(),queued=false;
+            var JS_ON={${compact(MOUSE_TRUE)}},JS_OFF={${compact(MOUSE_FALSE)}},media=window.matchMedia;
+            if(typeof media==='function'){window.matchMedia=function(q){
+              var k=String(q).replace(/\s+/g,'').toLowerCase();
+              return media.call(window,JS_ON[k]===1?'all':JS_OFF[k]===1?'not all':q);};}
             function fix(rules){for(var i=0;i<rules.length;i++){var r=rules[i];
               if(r instanceof CSSMediaRule){var t=r.media.mediaText;
                 if(ON[t]===1)r.media.mediaText='all';else if(OFF[t]===1)r.media.mediaText='not all';}
