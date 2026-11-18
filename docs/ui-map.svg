@@ -1,0 +1,185 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1480" height="1000" viewBox="0 0 1480 1000" font-family="Inter, 'Segoe UI', Helvetica, Arial, sans-serif">
+  <title>T3 Code Host: names of the UI objects (plugin 0.2.3)</title>
+  <style>
+    .frame{fill:#f6f7f9;stroke:#6b7280;stroke-width:2}
+    .area{fill:#ffffff;stroke:#9ca3af;stroke-width:1.5}
+    .t3{fill:#eef2ff;stroke:#6366f1;stroke-width:1.5}
+    .obj{fill:#ffffff;stroke:#a5b4fc;stroke-width:1.2}
+    .new{fill:#dcfce7;stroke:#16a34a;stroke-width:1.8}
+    .hover{fill:#fff7ed;stroke:#f97316;stroke-width:1.5;stroke-dasharray:5 3}
+    .ide{fill:#f1f5f9;stroke:#64748b;stroke-width:1.2}
+    .name{font-size:14px;font-weight:700;fill:#111827}
+    .label{font-size:12.5px;font-weight:600;fill:#1f2937}
+    .code{font-family:'JetBrains Mono',Consolas,monospace;font-size:11px;fill:#4338ca}
+    .codeg{font-family:'JetBrains Mono',Consolas,monospace;font-size:11px;fill:#15803d}
+    .note{font-size:11px;fill:#4b5563}
+    .small{font-size:11px;fill:#374151}
+  </style>
+  <rect width="1480" height="1000" fill="#ffffff"/>
+
+  <!-- IDE window -->
+  <rect class="frame" x="20" y="20" width="1440" height="890" rx="10"/>
+  <text class="name" x="36" y="44">IDE window (JetBrains)</text>
+  <text class="note" x="210" y="44">the T3 objects are in blue boxes; the objects new in 0.2.3 are in green boxes; the orange dashed box shows only on mouse hover or focus</text>
+
+  <!-- Tool window T3 Code -->
+  <rect class="area" x="36" y="60" width="330" height="780" rx="6"/>
+  <text class="name" x="50" y="84">Tool window "T3 Code"</text>
+  <text class="code" x="50" y="100">T3ToolWindowFactory · T3Layout NAVIGATOR</text>
+  <text class="code" x="50" y="114">T3BrowserPanel(Navigator) · /ide-navigator</text>
+
+  <rect class="t3" x="50" y="126" width="302" height="700" rx="6"/>
+  <text class="label" x="62" y="148">T3 sidebar</text>
+  <text class="code" x="140" y="148">[data-slot=sidebar]</text>
+
+  <rect class="obj" x="62" y="160" width="278" height="34" rx="5"/>
+  <text class="label" x="72" y="181">sidebar header: "New thread", search</text>
+
+  <rect class="obj" x="62" y="206" width="278" height="30" rx="5"/>
+  <text class="label" x="72" y="226">project group (project row)</text>
+
+  <rect class="obj" x="74" y="246" width="266" height="54" rx="5"/>
+  <text class="label" x="84" y="266">thread row</text>
+  <text class="code" x="160" y="266">li[data-thread-item]</text>
+  <rect x="84" y="276" width="96" height="18" rx="9" fill="#dbeafe" stroke="#3b82f6"/>
+  <text class="small" x="92" y="289">status: Working</text>
+
+  <rect class="new" x="74" y="310" width="266" height="84" rx="5"/>
+  <rect x="74" y="310" width="4" height="84" fill="#3574f0"/>
+  <text class="label" x="86" y="330">thread row – marked</text>
+  <rect x="220" y="318" width="112" height="18" rx="9" fill="#fef3c7" stroke="#d97706"/>
+  <text class="small" x="228" y="331">unread · Completed</text>
+  <text class="codeg" x="86" y="350">[data-t3plugin-current]</text>
+  <text class="codeg" x="86" y="364">T3SidebarMark</text>
+  <text class="note" x="86" y="382">thread of the selected T3 editor tab</text>
+
+  <rect class="obj" x="74" y="404" width="266" height="54" rx="5"/>
+  <text class="label" x="84" y="424">thread row</text>
+  <circle cx="320" cy="420" r="5" fill="#3574f0"/>
+  <text class="note" x="84" y="444">status pill / unread dot (T3)</text>
+
+  <rect class="obj" x="62" y="470" width="278" height="30" rx="5"/>
+  <text class="label" x="72" y="490">project group (other project)</text>
+
+  <rect class="obj" x="62" y="770" width="278" height="44" rx="5"/>
+  <text class="label" x="72" y="790">sidebar footer: Settings, account</text>
+  <text class="note" x="72" y="806">opens the settings tab</text>
+
+  <!-- Editor area -->
+  <rect class="area" x="380" y="60" width="760" height="780" rx="6"/>
+  <text class="name" x="394" y="84">Editor area</text>
+
+  <!-- tab bar -->
+  <rect class="ide" x="394" y="94" width="732" height="34" rx="4"/>
+  <rect class="t3" x="400" y="98" width="220" height="26" rx="4"/>
+  <text class="label" x="410" y="116">T3 editor tab: "thread title"</text>
+  <rect class="obj" x="626" y="98" width="150" height="26" rx="4"/>
+  <text class="label" x="636" y="116">T3 tab: "New thread"</text>
+  <rect class="ide" x="782" y="98" width="120" height="26" rx="4"/>
+  <text class="small" x="794" y="116">Main.kt (IDE file)</text>
+  <text class="code" x="910" y="116">T3PageFile · T3PageEditor</text>
+  <text class="name" x="394" y="146">editor tab bar</text>
+  <text class="note" x="490" y="146">one tab per thread, draft (/draft/…) or app page (settings, pull requests, usage) · T3PageTabs</text>
+
+  <!-- conversation page -->
+  <rect class="t3" x="394" y="156" width="732" height="670" rx="6"/>
+  <text class="label" x="406" y="176">conversation page</text>
+  <text class="code" x="530" y="176">T3BrowserPanel(Tab) · T3Layout CONVERSATION · T3VisitGate</text>
+
+  <rect class="obj" x="406" y="186" width="708" height="38" rx="5"/>
+  <text class="label" x="416" y="210">thread header: breadcrumb "project › thread title"</text>
+  <rect class="obj" x="880" y="192" width="104" height="26" rx="4"/>
+  <text class="small" x="888" y="209">branch selector</text>
+  <rect class="obj" x="990" y="192" width="118" height="26" rx="4"/>
+  <text class="small" x="996" y="209">Toggle right panel</text>
+
+  <text class="label" x="406" y="246">timeline (messages)</text>
+
+  <!-- user message row -->
+  <rect class="obj" x="406" y="254" width="708" height="190" rx="6"/>
+  <text class="label" x="416" y="274">user message row</text>
+  <text class="code" x="540" y="274">[data-message-role="user"]</text>
+
+  <rect x="740" y="284" width="360" height="86" rx="14" fill="#e0e7ff" stroke="#6366f1"/>
+  <text class="label" x="754" y="304">message box</text>
+  <text class="code" x="840" y="304">.bg-message</text>
+  <text class="small" x="754" y="324">message text (body)</text>
+  <text class="code" x="754" y="340">[data-user-message-body]</text>
+  <text class="note" x="754" y="358">no plugin button inside the box (0.2.3)</text>
+
+  <rect class="hover" x="560" y="380" width="540" height="54" rx="6"/>
+  <text class="label" x="570" y="398">message action row (under the box, right)</text>
+  <text class="small" x="570" y="424">10:20</text>
+  <rect class="obj" x="610" y="410" width="92" height="20" rx="4"/>
+  <text class="small" x="616" y="424">Edit from here</text>
+  <rect class="obj" x="708" y="410" width="94" height="20" rx="4"/>
+  <text class="small" x="714" y="424">Copy message</text>
+  <rect class="obj" x="808" y="410" width="104" height="20" rx="4"/>
+  <text class="small" x="814" y="424">Copy prompt link</text>
+  <rect class="new" x="918" y="410" width="74" height="20" rx="4"/>
+  <text class="small" x="924" y="424">Wrap lines</text>
+  <rect class="new" x="998" y="410" width="96" height="20" rx="4"/>
+  <text class="small" x="1004" y="424">Edit in composer</text>
+  <text class="codeg" x="830" y="398">T3MessageActions</text>
+
+  <!-- assistant message -->
+  <rect class="obj" x="406" y="454" width="708" height="134" rx="6"/>
+  <text class="label" x="416" y="474">assistant message row</text>
+  <text class="small" x="416" y="494">answer text, file links (open in the IDE editor)</text>
+  <rect class="obj" x="416" y="506" width="420" height="70" rx="6"/>
+  <text class="label" x="426" y="526">changed files card</text>
+  <text class="small" x="426" y="546">file rows → IDE diff viewer</text>
+  <rect class="obj" x="736" y="534" width="90" height="24" rx="4"/>
+  <text class="small" x="748" y="550">Open diff</text>
+  <text class="code" x="850" y="546">T3IdeBridge</text>
+
+  <!-- composer -->
+  <rect class="obj" x="406" y="602" width="708" height="210" rx="10"/>
+  <text class="label" x="418" y="624">composer</text>
+  <text class="code" x="490" y="624">[data-composer-rich-text="true"] (TipTap editor)</text>
+  <rect x="418" y="634" width="684" height="110" rx="6" fill="#f8fafc" stroke="#cbd5e1"/>
+  <text class="note" x="430" y="656">prompt text · "Edit in composer" puts the message text here (nothing is sent)</text>
+  <rect class="obj" x="418" y="756" width="130" height="26" rx="4"/>
+  <text class="small" x="426" y="773">attach / context</text>
+  <rect class="obj" x="556" y="756" width="120" height="26" rx="4"/>
+  <text class="small" x="564" y="773">model picker</text>
+  <rect class="obj" x="684" y="756" width="120" height="26" rx="4"/>
+  <text class="small" x="692" y="773">permissions</text>
+  <rect class="obj" x="1030" y="756" width="72" height="26" rx="13"/>
+  <text class="small" x="1046" y="773">Send</text>
+
+  <!-- T3 Workspace -->
+  <rect class="area" x="1154" y="60" width="290" height="780" rx="6"/>
+  <text class="name" x="1168" y="84">Tool window "T3 Workspace"</text>
+  <text class="code" x="1168" y="100">T3WorkspacePanels</text>
+  <text class="code" x="1168" y="114">T3BrowserPanel(Panel) · T3Layout PANEL</text>
+  <text class="code" x="1168" y="128">T3VisitGate: never visible</text>
+  <rect class="t3" x="1168" y="140" width="262" height="686" rx="6"/>
+  <text class="label" x="1180" y="162">right panel of the selected T3 tab</text>
+  <text class="code" x="1180" y="178">[aria-label^="Workspace panel"]</text>
+  <rect class="obj" x="1180" y="190" width="238" height="30" rx="5"/>
+  <text class="label" x="1190" y="210">surface tabs</text>
+  <rect class="obj" x="1180" y="230" width="238" height="200" rx="5"/>
+  <text class="label" x="1190" y="250">surface: Browser, Pull request,</text>
+  <text class="label" x="1190" y="266">Device, Side chat</text>
+  <text class="note" x="1190" y="288">Terminal, Files, Diff → IDE tools</text>
+
+  <!-- bottom IDE tools -->
+  <rect class="ide" x="36" y="850" width="1104" height="50" rx="6"/>
+  <text class="name" x="50" y="872">IDE tool windows (bottom)</text>
+  <text class="small" x="50" y="890">Terminal (from "Toggle terminal drawer"), Git / Commit, diff viewer windows · T3IdeTools</text>
+  <rect class="ide" x="1154" y="850" width="290" height="50" rx="6"/>
+  <text class="name" x="1168" y="872">status bar widget</text>
+  <text class="small" x="1168" y="890">"T3: running" · T3StatusWidgetFactory</text>
+
+  <!-- legend -->
+  <rect class="t3" x="36" y="930" width="22" height="16" rx="3"/>
+  <text class="small" x="66" y="943">T3 web UI object (blue)</text>
+  <rect class="new" x="236" y="930" width="22" height="16" rx="3"/>
+  <text class="small" x="266" y="943">new or changed in 0.2.3 (green)</text>
+  <rect class="hover" x="476" y="930" width="22" height="16" rx="3"/>
+  <text class="small" x="506" y="943">visible on hover / focus (orange)</text>
+  <rect class="ide" x="736" y="930" width="22" height="16" rx="3"/>
+  <text class="small" x="766" y="943">IDE object (grey)</text>
+  <text class="code" x="36" y="972">monospace text = class of the plugin or CSS selector of T3 0.1.9</text>
+</svg>

@@ -65,21 +65,51 @@ class T3ClipboardBridgeTest {
     }
 
     @Test
-    fun `message actions script marks the user message boxes`() {
+    fun `message actions script finds the action row of the user messages`() {
         val script = T3MessageActions.script()
         assertTrue(script.contains("'[data-message-role=\"user\"]'"))
         assertTrue(script.contains("button[aria-label=\"Copy message\"]:not([data-t3plugin-button])"))
         assertTrue(script.contains("'Wrap lines'"))
         assertTrue(script.contains("'Disable line wrap'"))
+        assertTrue(script.contains("'Edit in composer'"))
         assertTrue(script.contains("NOWRAP='${T3MessageActions.NO_WRAP_ATTRIBUTE}'"))
     }
 
     @Test
-    fun `message actions are in the box at the top right, before the text`() {
+    fun `message actions go into the T3 button group, not into the box`() {
         val script = T3MessageActions.script()
-        assertTrue(script.contains("{float:right;"))
-        assertTrue(script.contains("bubble.insertBefore(bar,bubble.firstChild)"))
-        assertTrue(!script.contains("right:100%"))
+        assertTrue(script.contains("var group=t3.parentElement;"))
+        assertTrue(script.contains("b.className=t3.className;"))
+        assertFalse(script.contains("float:right"))
+        assertFalse(script.contains("bubble"))
+        assertFalse(script.contains("'Copied'"))
+    }
+
+    @Test
+    fun `edit puts the message text into the composer without sending it`() {
+        val script = T3MessageActions.script()
+        assertTrue(script.contains("document.querySelector('${T3MessageActions.COMPOSER_SELECTOR}')"))
+        assertTrue(script.contains("if(i)out.push({type:'hardBreak'})"))
+        assertTrue(script.contains("ed.chain().focus('end').insertContent(nodes).focus('end').run()"))
+        assertFalse(script.contains("Send message"))
+        assertFalse(script.contains("Enter"))
+    }
+
+    @Test
+    fun `visit gate holds thread visits only while the page is hidden`() {
+        val hidden = T3VisitGate.script(false)
+        assertTrue(hidden.contains("window.__t3VisitGate(false);"))
+        assertTrue(hidden.contains("indexOf('\"thread.visit\"')"))
+        assertTrue(hidden.contains("if(!shown&&isVisit(t)){held.push"))
+        assertTrue(T3VisitGate.script(true).endsWith("window.__t3VisitGate(true);})();"))
+    }
+
+    @Test
+    fun `sidebar mark accepts only safe thread ids`() {
+        assertTrue(T3SidebarMark.script("mcp:1c760312-ab").endsWith("window.__t3SidebarMark('mcp:1c760312-ab');})();"))
+        assertTrue(T3SidebarMark.script("a');alert(1);('").endsWith("window.__t3SidebarMark(null);})();"))
+        assertTrue(T3SidebarMark.script(null).endsWith("window.__t3SidebarMark(null);})();"))
+        assertTrue(T3SidebarMark.script(null).contains("li[data-thread-item]"))
     }
 
     @Test
