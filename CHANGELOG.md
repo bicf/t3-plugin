@@ -28,7 +28,7 @@
 - The "Diff" panel surface opens the IDE diff of the working tree. The "Terminal", "Files" and "Diff" items of the empty right panel open the IDE tools.
 - The action row under each message of the user (time, "Copy message", "Copy prompt link") has 2 more buttons: "Disable line wrap" / "Wrap lines" and "Edit in composer". The row shows on mouse hover or focus. "Edit in composer" puts the original text of the message in the composer, after the draft; it sends nothing.
 - The T3 sidebar of the tool window marks the thread of the last selected T3 editor tab.
-- [`docs/ui-map.svg`](docs/ui-map.svg): a map of the IDE window with the names of the T3 and plugin objects.
+- [`docs/ui-map.svg`](https://github.com/bicf/t3-plugin/blob/main/docs/ui-map.svg): a map of the IDE window with the names of the T3 and plugin objects.
 
 ### Fixed
 - Copy buttons in the T3 web UI put the text on the system clipboard.
