@@ -6,6 +6,12 @@
 #
 # The workflow is triggered on pushes to the 'main' branch and on pull_request events.
 #
+# The repository variable CI_RUNS_ON selects the runner, as a JSON value for 'runs-on':
+# - not set: "ubuntu-latest" (GitHub-hosted);
+# - ["self-hosted","linux","t3-ci"]: the Docker runner of ci/runner (see ci/README.md).
+# The GitHub-hosted runner needs the disk, Java and Gradle setup steps; the t3-ci image has Java,
+# and its Gradle volume keeps the dependencies, the IDEs and the build cache between runs.
+#
 # GitHub Actions reference: https://docs.github.com/actions
 #
 ## JBIJPPTPL
@@ -24,14 +30,15 @@ concurrency:
 
 jobs:
 
-  # Prepare the environment and build the plugin
+  # Build the plugin, run the tests and the plugin verification in one Gradle invocation
   build:
-    name: Build
-    runs-on: ubuntu-latest
+    name: Build, test and verify
+    runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     steps:
 
-      # Free GitHub Actions Environment Disk Space
+      # Free GitHub Actions Environment Disk Space (GitHub-hosted only: it deletes system directories)
       - name: Maximize Build Space
+        if: ${{ runner.environment == 'github-hosted' }}
         uses: jlumbroso/free-disk-space@v2.0.0
         with:
           preinstalled-runtimes: false
@@ -43,6 +50,7 @@ jobs:
 
       # Set up the Java environment for the next steps
       - name: Setup Java
+        if: ${{ runner.environment == 'github-hosted' }}
         uses: actions/setup-java@v6
         with:
           distribution: zulu
@@ -50,53 +58,21 @@ jobs:
 
       # Setup Gradle
       - name: Setup Gradle
+        if: ${{ runner.environment == 'github-hosted' }}
         uses: gradle/actions/setup-gradle@v6
 
-      # Build plugin
-      - name: Build plugin
-        run: ./gradlew buildPlugin
+      # Build the plugin, run the tests and the Plugin Verifier
+      - name: Build, test and verify plugin
+        run: ./gradlew buildPlugin check verifyPlugin --console=plain
 
       # Store an already-built plugin as an artifact for downloading
       - name: Upload artifact
+        if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v7
         with:
           name: plugin-distribution
           path: ./build/distributions/*.zip
-
-  # Run tests and upload test reports on failure
-  test:
-    name: Test
-    needs: [ build ]
-    runs-on: ubuntu-latest
-    steps:
-
-      # Free GitHub Actions Environment Disk Space
-      - name: Maximize Build Space
-        uses: jlumbroso/free-disk-space@v2.0.0
-        with:
-          preinstalled-runtimes: false
-          large-packages: false
-
-      # Check out the current repository
-      - name: Fetch Sources
-        uses: actions/checkout@v7
-
-      # Set up the Java environment for the next steps
-      - name: Setup Java
-        uses: actions/setup-java@v6
-        with:
-          distribution: zulu
-          java-version: 21
-
-      # Setup Gradle
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v6
-        with:
-          cache-read-only: true
-
-      # Run tests
-      - name: Run Tests
-        run: ./gradlew check
+          if-no-files-found: ignore
 
       # Collect Tests Result of failed tests
       - name: Collect Tests Result
@@ -105,57 +81,24 @@ jobs:
         with:
           name: tests-result
           path: ${{ github.workspace }}/build/reports/tests
-
-  # Run plugin structure verification along with IntelliJ Plugin Verifier
-  verify:
-    name: Verify plugin
-    needs: [ build ]
-    runs-on: ubuntu-latest
-    steps:
-
-      # Free GitHub Actions Environment Disk Space
-      - name: Maximize Build Space
-        uses: jlumbroso/free-disk-space@v2.0.0
-        with:
-          preinstalled-runtimes: false
-          large-packages: false
-
-      # Check out the current repository
-      - name: Fetch Sources
-        uses: actions/checkout@v7
-
-      # Set up the Java environment for the next steps
-      - name: Setup Java
-        uses: actions/setup-java@v6
-        with:
-          distribution: zulu
-          java-version: 21
-
-      # Setup Gradle
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v6
-        with:
-          cache-read-only: true
-
-      # Run Verify Plugin task and IntelliJ Plugin Verifier tool
-      - name: Run Plugin Verification tasks
-        run: ./gradlew verifyPlugin
+          if-no-files-found: ignore
 
       # Collect Plugin Verifier Result
       - name: Collect Plugin Verifier Result
-        if: ${{ always() }}
+        if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v7
         with:
           name: pluginVerifier-result
           path: ${{ github.workspace }}/build/reports/pluginVerifier
+          if-no-files-found: ignore
 
   # Prepare a draft release for GitHub Releases page for the manual verification
   # If accepted and published, the release workflow would be triggered
   releaseDraft:
     name: Release draft
     if: github.event_name != 'pull_request'
-    needs: [ build, test, verify ]
-    runs-on: ubuntu-latest
+    needs: [ build ]
+    runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     permissions:
       contents: write
     steps:
@@ -166,6 +109,7 @@ jobs:
 
       # Set up the Java environment for the next steps
       - name: Setup Java
+        if: ${{ runner.environment == 'github-hosted' }}
         uses: actions/setup-java@v6
         with:
           distribution: zulu
@@ -173,6 +117,7 @@ jobs:
 
       # Setup Gradle
       - name: Setup Gradle
+        if: ${{ runner.environment == 'github-hosted' }}
         uses: gradle/actions/setup-gradle@v6
         with:
           cache-read-only: true

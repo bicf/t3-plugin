@@ -1,0 +1,30 @@
+# Self-hosted runner "t3-ci" for bicf/t3-plugin. See ci/README.md.
+name: t3-ci
+
+services:
+  runner:
+    build:
+      context: .
+      args:
+        RUNNER_UID: ${RUNNER_UID:-1000}
+        RUNNER_GID: ${RUNNER_GID:-1000}
+    image: t3-ci-runner:latest
+    container_name: t3-ci-runner
+    restart: unless-stopped
+    init: true
+    stop_grace_period: 60s
+    cpus: 12
+    mem_limit: 12g
+    environment:
+      RUNNER_URL: https://github.com/bicf/t3-plugin
+      RUNNER_NAME: t3-ci
+      RUNNER_LABELS: t3-ci
+    volumes:
+      - gradle:/home/runner/.gradle
+      - runner-state:/runner-state
+
+volumes:
+  gradle:
+    name: t3-ci-gradle
+  runner-state:
+    name: t3-ci-runner-state
