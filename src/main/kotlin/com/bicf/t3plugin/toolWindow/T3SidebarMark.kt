@@ -1,7 +1,8 @@
 package com.bicf.t3plugin.toolWindow
 
 /**
- * Marks in the T3 sidebar of the "T3 Code" tool window the thread of the selected T3 editor tab.
+ * Marks in the T3 sidebar of the "T3 Code" tool window the thread of the last selected T3 editor tab that is still
+ * open. While a file of the IDE is selected, the mark stays.
  *
  * T3 0.1.9 (verified on a T3 server): a thread row of the sidebar is `li[data-thread-item="<key>"]`, and the key is
  * `<environmentId>:<threadId>`, for example `6de4d82c-…:mcp:e870489c-…`. The row of the thread on screen has the

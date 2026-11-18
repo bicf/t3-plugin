@@ -85,7 +85,7 @@ import javax.swing.JPanel
  * - Editor tab: the page sends the "thread visited" command only while the tab is on screen (see [T3VisitGate]).
  *   A thread that completes in a tab in the background keeps its unread state.
  * - "T3 Workspace": the page never sends the "thread visited" command; the tab of the same thread sends it.
- * - Tool window with editor tabs: the sidebar marks the thread of the selected T3 tab (see [T3SidebarMark]).
+ * - Tool window with editor tabs: the sidebar marks the thread of the last selected T3 tab (see [T3SidebarMark]).
  * - Without editor tabs, in a narrow tool window, the left sidebar of the page gets a drag handle (see [T3SidebarResize]).
  * - With "Use IDE tools", file links, "Open in …", diffs, the terminal and Git use the IDE (see [T3IdeBridge]).
  *   With a remote server, only the diff uses the IDE: the files are on another machine.

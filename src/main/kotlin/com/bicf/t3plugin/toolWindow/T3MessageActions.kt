@@ -26,7 +26,6 @@ package com.bicf.t3plugin.toolWindow
  */
 internal object T3MessageActions {
 
-    const val ACTIONS_ATTRIBUTE = "data-t3plugin-message-actions"
     const val NO_WRAP_ATTRIBUTE = "data-t3plugin-nowrap"
 
     /** The T3 composer: a TipTap editor; its element has the editor in the `editor` property. */
@@ -34,7 +33,7 @@ internal object T3MessageActions {
 
     fun script(): String = """
         (function(){if(window.__t3MessageActions)return;window.__t3MessageActions=true;
-        var ATTR='$ACTIONS_ATTRIBUTE',NOWRAP='$NO_WRAP_ATTRIBUTE',nowrap={};
+        var NOWRAP='$NO_WRAP_ATTRIBUTE',nowrap={};
         var css='[data-t3plugin-button][aria-pressed=false]{background:var(--accent,rgba(128,128,128,.15));color:var(--foreground,currentColor);}'+
           '['+NOWRAP+'] [data-user-message-body] .chat-markdown{white-space:nowrap;overflow-wrap:normal!important;word-break:normal!important;overflow-x:auto;}';
         function addStyle(){if(document.getElementById('t3plugin-message-actions'))return;
@@ -73,7 +72,7 @@ internal object T3MessageActions {
           row.querySelectorAll('button[aria-label="Copy message"]:not([data-t3plugin-button])').forEach(function(t3){
             var group=t3.parentElement;if(!group)return;
             var w=group.querySelector(':scope>[data-t3plugin-button="wrap"]'),e=group.querySelector(':scope>[data-t3plugin-button="edit"]');
-            if(!w){w=button(t3,'wrap','Disable line wrap');group.setAttribute(ATTR,'');added=true;
+            if(!w){w=button(t3,'wrap','Disable line wrap');added=true;
               w.addEventListener('click',function(ev){ev.stopPropagation();var r=rowOf(w);if(!r)return;
                 var id=r.getAttribute('data-message-id');nowrap[id]=!nowrap[id];wrapState(r);});}
             if(!e){e=button(t3,'edit','Edit in composer');added=true;

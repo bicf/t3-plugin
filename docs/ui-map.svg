@@ -51,7 +51,7 @@
   <text class="small" x="228" y="331">unread · Completed</text>
   <text class="codeg" x="86" y="350">[data-t3plugin-current]</text>
   <text class="codeg" x="86" y="364">T3SidebarMark</text>
-  <text class="note" x="86" y="382">thread of the selected T3 editor tab</text>
+  <text class="note" x="86" y="382">thread of the last selected T3 editor tab</text>
 
   <rect class="obj" x="74" y="404" width="266" height="54" rx="5"/>
   <text class="label" x="84" y="424">thread row</text>

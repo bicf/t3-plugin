@@ -53,6 +53,9 @@ FakeStorage.prototype.setItem.call(storage, UI, JSON.stringify({ projectOrder: [
 out('hiddenStored', JSON.parse(storage.m[UI]));
 FakeStorage.prototype.setItem.call(storage, UI, '{bad json');
 out('badJsonStored', storage.m[UI]);
+storage.m[UI] = JSON.stringify({ threadLastVisitedAtById: { k1: '2026-11-18T09:00:00Z', k3: '2026-11-18T08:00:00Z' } });
+FakeStorage.prototype.setItem.call(storage, UI, JSON.stringify({ threadLastVisitedAtById: { k1: '2026-11-18T07:00:00Z' } }));
+out('hiddenOlderStored', JSON.parse(storage.m[UI]).threadLastVisitedAtById);
 storage.m[UI] = JSON.stringify({ projectOrder: ['b'], threadLastVisitedAtById: { k1: '2026-11-18T09:00:00Z' } });
 
 run(shownFile);
@@ -62,4 +65,27 @@ run(shownFile);
 out('secondShowSent', ids(ws).length);
 ws.send(visit(8, 't1', '2026-11-18T10:01:00Z'));
 out('visibleSent', ids(ws));
+
+// Hidden again: a held visit goes to the last open socket when its socket closed.
+run(hiddenFile);
+ws.send(visit(10, 't1', '2026-11-18T10:02:00Z'));
+ws.readyState = 3;
+const ws2 = new FakeWebSocket();
+ws2.send(other(11));
+storage.m[UI] = JSON.stringify({ threadLastVisitedAtById: { k1: '2026-11-18T10:00:00Z' } });
+FakeStorage.prototype.setItem.call(storage, UI, JSON.stringify({
+  threadLastVisitedAtById: { k1: '2026-11-18T10:00:00Z', k5: '2026-11-18T10:05:00Z' } }));
+delete storage.m[UI];
+run(shownFile);
+out('rehideSent', { closed: ids(ws).length, open: ids(ws2) });
+out('missingStateStored', storage.getItem(UI));
+
+// Hidden again: without an open socket, the gate drops the held visit; the held times are saved at the next show.
+storage.m[UI] = JSON.stringify({ projectOrder: ['c'], threadLastVisitedAtById: { k1: '2026-11-18T10:00:00Z' } });
+run(hiddenFile);
+ws2.send(visit(12, 't2', '2026-11-18T10:06:00Z'));
+ws2.readyState = 3;
+run(shownFile);
+out('droppedSent', ids(ws2));
+out('retryStored', JSON.parse(storage.m[UI]));
 out('log', ctx.__t3VisitLog);
