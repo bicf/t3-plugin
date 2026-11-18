@@ -1,0 +1,15 @@
+T3 Code Host (Unofficial) – Copyright 2026 Ivan Buttinoni
+
+This program is free software: you can redistribute it and/or modify it under the terms of the
+GNU General Public License as published by the Free Software Foundation, either version 3 of the
+License, or (at your option) any later version. See the LICENSE file.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
+even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+This project started from the IntelliJ Platform Plugin Template
+(https://github.com/JetBrains/intellij-platform-plugin-template), Copyright JetBrains s.r.o.,
+licensed under the Apache License, Version 2.0.
+
+"T3 Code" is the name of the pingdotgg/t3code project. This plugin is not affiliated with or
+endorsed by that project.
