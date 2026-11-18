@@ -50,7 +50,9 @@ IDE JetBrains
 | `T3ProjectBinder` | progetto | Esegue `t3 project add <basePath>`. Tratta `ProjectAlreadyExistsError` (exit 1) come successo. Apre il thread più recente (`/$environmentId/$threadId`), oppure `/`. |
 | `T3ThemeSync` + `T3IdePalette` | progetto | Crea in localStorage il tema T3 `jetbrains-ide` (`t3code:themes:v1`) con i colori dell'IDE, lo seleziona (`t3code:theme`, `t3code:theme-appearance-mode`), rimuove `t3code:theme-halves:v1` e invia un evento `storage` per chiave: la pagina cambia colori senza ricaricarsi. Gira a ogni caricamento, a ogni `LafManagerListener.lookAndFeelChanged` e a ogni cambio di schema colori dell'editor. Lo sfondo dell'editor va su composer, codice e terminale solo se editor e IDE sono entrambi chiari o entrambi scuri. |
 | `T3ClipboardBridge` | browser | Copia: `navigator.clipboard.writeText`, `write` (parte `text/plain`), Ctrl+C e Taglia vanno al plugin, che scrive negli appunti dell'IDE (`CopyPasteManager`). Paste: lo script annulla l'evento `paste` nativo, chiede al plugin gli appunti dell'IDE (testo o immagine PNG) e invia un nuovo evento `paste` allo stesso elemento. Su Linux (`CopyPasteManager.isSystemSelectionSupported`), una selezione nella pagina va nella selezione primaria dell'IDE dopo 200 ms, e il paste col tasto centrale legge la selezione primaria dell'IDE (solo testo). Su Windows e macOS il paste col tasto centrale resta nativo. Motivo: su Wayland l'IDE scrive negli appunti Wayland, ma Chromium gira su XWayland e legge gli appunti X11, che il desktop aggiorna solo per una finestra X11 con il focus. Lo stesso vale per la selezione primaria. |
-| `T3MessageActions` | browser | Pulsanti "Copy message" e "Disable line wrap" / "Wrap lines" nel box di ogni messaggio utente (`data-message-role="user"`), in alto a destra, visibili con il mouse sul box. I pulsanti sono un elemento `float` prima del testo: la prima riga gira intorno ai pulsanti e non va mai sotto di loro (lo sfondo del box è trasparente). Senza wrap il testo inizia sotto i pulsanti. La copia clicca il "Copy message" di T3 (testo originale del messaggio). Il wrap spento mostra ogni riga su una riga, con scorrimento orizzontale; lo stato vale per messaggio fino al ricaricamento. |
+| `T3MessageActions` | browser | Pulsanti "Disable line wrap" / "Wrap lines" e "Edit in composer" alla fine del gruppo di pulsanti di T3 che contiene "Copy message", nella riga azioni sotto il box di ogni messaggio utente (`data-message-role="user"`): orario, "Edit from here", "Copy message", "Copy prompt link". La riga si vede con il mouse sul messaggio o con il focus. I pulsanti prendono le classi del "Copy message" di T3. Il box non ha pulsanti del plugin. Il wrap spento mostra ogni riga su una riga, con scorrimento orizzontale; lo stato vale per messaggio fino al ricaricamento. "Edit in composer" mette nel composer (TipTap, `[data-composer-rich-text="true"]`, proprietà `editor`) il testo originale del messaggio (prop `text` del componente React del "Copy message", 9 livelli sopra il pulsante; la ricerca si ferma al primo elemento DOM sopra il pulsante), con un `hardBreak` per ogni a capo, dopo la bozza e una riga vuota; non invia niente. "Edit from here" di T3 è diverso: riporta la conversazione a quel turno. |
+| `T3VisitGate` | browser | Tab editor e "T3 Workspace". Ogni pagina con un thread montato invia `thread.visit` (`orchestration.dispatchCommand`) dopo un aggiornamento del thread: subito quando una run finisce, altrimenti entro 10 s; il server toglie lo stato non letto ("Done", "Failed") dalla sidebar. Lo script entra a `onLoadStart`. Mentre la pagina non è sullo schermo, tiene l'ultima richiesta di ogni thread e risponde alla precedente con un `Exit` di successo (`sequence` 0), mai fra 2 parti di un messaggio. Mentre la pagina è nascosta, un salvataggio di `t3code:ui-state:v1` mantiene i tempi di visita salvati. Quando la tab diventa visibile (`HierarchyEvent.SHOWING_CHANGED`), invia le richieste senza modifiche e salva i tempi locali trattenuti. La pagina di "T3 Workspace" non invia mai la visita. `window.__t3VisitLog` tiene gli ultimi 20 eventi. |
+| `T3SidebarMark` | browser | Tool window con tab editor. La riga `li[data-thread-item="<environmentId>:<threadId>"]` del thread dell'ultima tab T3 selezionata (ancora aperta) ha lo sfondo `--sidebar-row-active` e una barra di 2 px a sinistra. Il confronto usa la chiave completa. Una tab non T3 lascia il segno; la chiusura della tab segnata lo toglie. |
 | `T3SidebarResize` | browser | Solo senza tab editor. Sotto i 768 px T3 mostra la sidebar come pannello sovrapposto largo quasi tutta la pagina, senza resize. Lo script aggiunge un bordo trascinabile di 6 px (minimo 200 px), salva la larghezza in `t3plugin:mobile-sidebar-width` e la ripristina con un doppio clic. |
 | Focus di Chromium (pannello) | browser | A ogni pressione del mouse nella pagina, e a ogni caricamento con il browser già a fuoco, il pannello chiama `CefBrowser.setFocus(true)`. Motivo: `JBCefBrowser` dà il focus a Chromium solo a un cambio di focus Swing; senza focus Chromium non mostra il cursore di testo. |
 | `T3LinkHandler` (`T3LinkPolicy` + handler del pannello) | browser | Apre nel browser di sistema gli URL esterni all'origin T3. Navigazioni: `onBeforeBrowse`. Popup e link `target="_blank"`: un ponte JavaScript nella pagina, perché con JCEF out-of-process `onBeforePopup` non arriva al plugin. |
@@ -410,6 +412,39 @@ Fatti:
 - Ogni pagina T3 scrive in `localStorage` tutte le sue bozze: l'ultima pagina che scrive cancella le bozze create in un'altra pagina dopo il suo caricamento (limite di T3, not verified con più tab aperte a lungo).
 - Not verified: la gara sulla macchina dell'utente (la prova la simula con un ritardo); un redirect nel tool window "T3 Workspace".
 
+Stato (2026-11-18), versione 0.2.3: pulsanti nella riga azioni dei messaggi utente, "Edit in composer", segno del thread nella sidebar, stato non letto dei thread nelle tab in background. `./gradlew test`: 114 test, 0 errori, 1 saltato. `T3VisitGateScriptTest` esegue lo script del gate in Node (`src/test/resources/js/visit-gate-harness.js`); senza `node` i suoi 8 test sono saltati. `T3SidebarMarkScriptTest` esegue lo script del segno in Node (`src/test/resources/js/sidebar-mark-harness.js`, 4 test).
+Server T3 0.1.9 isolato (home nella scratchpad, porta 3898), progetto `demo`, modello `claude-haiku-5-5`, run avviate con `t3 thread send`.
+Prove 1: Chrome headless (CDP) con gli script generati dal plugin. Prove 2: `runIde` (IU 2026.2.3, Wayland), tab e split comandati da uno script Groovy della sandbox, stato delle pagine letto con DevTools (porta 9223).
+
+| Prova | 0.2.2 | 0.2.3 |
+|---|---|---|
+| Pagina del thread nascosta, run completata (headless) | La pagina invia `thread.visit`; la riga perde "Done" | La pagina trattiene `thread.visit` (0 frame inviati); la riga resta "Done" |
+| Stessa pagina, poi visibile (headless) | — | 1 frame `thread.visit` inviato; la riga perde "Done" |
+| IDE: tab del thread in background (selezionato `README.md`), run completata | — | Gate `held`; la riga resta "Done" |
+| IDE: selezione della tab del thread | — | `SHOWING_CHANGED`, gate `sent`; la riga perde "Done" |
+| IDE: split, thread a sinistra, `README.md` selezionato a destra, run completata | — | Nessuna visita trattenuta (la tab è visibile); la riga non resta "Done" |
+| IDE: tab aperta con `focus=false` (tab iniziale e `T3PageTabs.open(…, false)`) | — | Tab selezionata e visibile; segno sul suo thread |
+| IDE: chiusura della tab segnata, `README.md` selezionato dopo | — | Segno tolto; nessun segno sulla tab chiusa |
+| Riga azioni di un messaggio utente (headless e IDE) | orario, Edit from here, Copy message, Copy prompt link | stessi pulsanti, poi Disable line wrap e Edit in composer, 24x24 px come quelli di T3; 0 pulsanti nel box |
+| Wrap spento (headless) | — | `white-space: nowrap`, larghezza del testo 870 px in un box di 357 px |
+| "Edit in composer", composer vuoto (headless) | — | Testo originale con `` `code` `` e un a capo; focus nel composer; nessun invio |
+| "Edit in composer", bozza "my draft" (headless) | — | "my draft", riga vuota, testo del messaggio |
+| Segno nella sidebar (headless e IDE) | — | Solo la riga con la chiave completa `<environmentId>:<threadId>`; sfondo della riga attiva e barra blu; "Done" resta |
+| Gate (Node, WebSocket finto): 2 visite dello stesso thread nascosto | — | La prima riceve `Exit` di successo dopo l'ultima parte del messaggio in arrivo; la seconda resta trattenuta |
+| Gate (Node): salvataggio di `t3code:ui-state:v1` con pagina nascosta | — | Tempi di visita salvati invariati (anche con un tempo più vecchio o un thread assente), altri campi aggiornati; alla visibilità il gate salva i tempi trattenuti; se il salvataggio fallisce, li tiene per la visibilità successiva |
+| Gate (Node): pagina di nuovo nascosta, socket chiuso | — | La visita trattenuta va all'ultimo socket aperto; senza socket aperto il gate scarta la visita (`dropped`) |
+| Segno sidebar (Node, sidebar finta) | — | Solo la riga con la chiave completa; lo spostamento scorre la riga una volta; una riga ricreata riprende il segno in un frame; `null` toglie il segno |
+
+Fatti:
+- La risposta del server a `thread.visit` è `{"_tag":"Exit","requestId":<id>,"exit":{"_tag":"Success","value":{"sequence":<n>}}}`.
+- Durante una run, T3 invia `thread.visit` dopo ogni aggiornamento del thread, al massimo ogni 10 s.
+- La chiave di una riga della sidebar è `<environmentId>:<threadId>`.
+- Un messaggio inviato da un agente o dalla CLI (`data-user-message-attribution="agent"`) è chiuso: il body e la riga azioni esistono solo quando l'utente lo apre.
+- Un thread avviato dalla CLI e mai aperto riceve `thread.visit` come gli altri (verificato: gate `held`). T3 scrive una visita solo locale (`t3code:ui-state:v1`) quando il thread non ha l'ora di visita del server; nelle prove questo caso non è successo e `t3code:ui-state:v1` è rimasto vuoto.
+- Un thread con "Done" dalla creazione (avviato dalla CLI, pagina aperta dopo la fine della run) può restare "Done" anche con la tab visibile: T3 non invia nessuna visita. Lo stesso succede senza il plugin nella prova headless.
+- Una pagina T3 aperta in un altro client (un altro browser) invia le sue visite: la riga perde "Done" anche con il gate.
+- Not verified: l'IDE ridotto a icona (la tab resta visibile per Swing); l'hover del mouse in headless e nell'IDE (le prove usano il focus).
+
 ### Fase 4 – Qualità e CI
 
 - Test unitari: parsing di `server-runtime.json`, parsing dell'output JSON della CLI, filtro degli URL.
@@ -424,8 +459,10 @@ Fatti:
 
 1. Crea un certificato e configura `signPlugin`.
 2. Carica a mano la prima versione sul Marketplace.
-3. Imposta `ORG_GRADLE_PROJECT_intellijPlatformPublishingToken` per `publishPlugin`.
-4. Pubblica prima nel canale `beta`, poi nel canale `default`.
+3. Imposta `PUBLISH_TOKEN`, `CERTIFICATE_CHAIN`, `PRIVATE_KEY` e `PRIVATE_KEY_PASSWORD` per `publishPlugin` (gli stessi secret di `release.yml`).
+4. Pubblica prima nel canale `beta` (`PUBLISH_CHANNEL=beta`), poi nel canale `default` (nessun `PUBLISH_CHANNEL`).
+
+Stato (2026-11-18): il punto 1 è fatto. La chiave cifrata e il certificato self-signed (10 anni) sono fuori dal repository, in `~/.config/t3-plugin-signing/`.
 
 ## Rischi
 

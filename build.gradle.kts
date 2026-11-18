@@ -27,6 +27,20 @@ dependencies {
     }
 }
 
+// Signing and publishing read the same environment variables as .github/workflows/release.yml.
+// PUBLISH_CHANNEL selects the Marketplace channel ("beta", ...); without it, the plugin goes to "default".
+intellijPlatform {
+    signing {
+        certificateChain = providers.environmentVariable("CERTIFICATE_CHAIN")
+        privateKey = providers.environmentVariable("PRIVATE_KEY")
+        password = providers.environmentVariable("PRIVATE_KEY_PASSWORD")
+    }
+    publishing {
+        token = providers.environmentVariable("PUBLISH_TOKEN")
+        channels = providers.environmentVariable("PUBLISH_CHANNEL").orElse("default").map { listOf(it) }
+    }
+}
+
 intellijPlatformTesting {
     runIde {
         // `./gradlew runPyCharm`: the plugin in PyCharm, the second IDE of the phase 2 exit criterion.

@@ -2,6 +2,7 @@ package com.bicf.t3plugin.toolWindow
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -65,21 +66,78 @@ class T3ClipboardBridgeTest {
     }
 
     @Test
-    fun `message actions script marks the user message boxes`() {
+    fun `message actions script finds the action row of the user messages`() {
         val script = T3MessageActions.script()
         assertTrue(script.contains("'[data-message-role=\"user\"]'"))
         assertTrue(script.contains("button[aria-label=\"Copy message\"]:not([data-t3plugin-button])"))
         assertTrue(script.contains("'Wrap lines'"))
         assertTrue(script.contains("'Disable line wrap'"))
+        assertTrue(script.contains("'Edit in composer'"))
         assertTrue(script.contains("NOWRAP='${T3MessageActions.NO_WRAP_ATTRIBUTE}'"))
     }
 
     @Test
-    fun `message actions are in the box at the top right, before the text`() {
+    fun `message actions go into the T3 button group, not into the box`() {
         val script = T3MessageActions.script()
-        assertTrue(script.contains("{float:right;"))
-        assertTrue(script.contains("bubble.insertBefore(bar,bubble.firstChild)"))
-        assertTrue(!script.contains("right:100%"))
+        assertTrue(script.contains("var group=t3.parentElement;"))
+        assertTrue(script.contains("b.className=t3.className;"))
+        assertFalse(script.contains("float:right"))
+        assertFalse(script.contains("bubble"))
+        assertFalse(script.contains("'Copied'"))
+    }
+
+    @Test
+    fun `edit puts the message text into the composer without sending it`() {
+        val script = T3MessageActions.script()
+        assertTrue(script.contains("document.querySelector('${T3MessageActions.COMPOSER_SELECTOR}')"))
+        assertTrue(script.contains("if(i)out.push({type:'hardBreak'})"))
+        assertTrue(script.contains("ed.chain().focus('end').insertContent(nodes).focus('end').run()"))
+        assertFalse(script.contains("Send message"))
+        assertFalse(script.contains("Enter"))
+    }
+
+    @Test
+    fun `visit gate holds thread visits only while the page is hidden`() {
+        val hidden = T3VisitGate.script(false)
+        assertTrue(hidden.contains("window.__t3VisitGate(false);"))
+        assertTrue(hidden.contains("indexOf('\"thread.visit\"')"))
+        assertTrue(hidden.contains("if(!shown){var v=visitOf(t);"))
+        assertTrue(T3VisitGate.script(true).endsWith("window.__t3VisitGate(true);})();"))
+    }
+
+    @Test
+    fun `visit gate keeps one visit per thread and answers the old one`() {
+        val script = T3VisitGate.script(false)
+        assertTrue(script.contains("held[v.thread]={ws:ws,t:t,id:v.id}"))
+        assertTrue(script.contains("if(old){try{answer(old.ws,old.id);}"))
+        assertTrue(script.contains("exit:{_tag:'Success',value:{sequence:0}}"))
+        assertTrue(script.contains("if(s.partial)s.queue.push(t);else deliver(ws,t);"))
+    }
+
+    @Test
+    fun `visit gate keeps the stored local visit times while the page is hidden`() {
+        val script = T3VisitGate.script(false)
+        assertTrue(script.contains("UI='${T3VisitGate.UI_STATE_KEY}'"))
+        assertTrue(script.contains("S.setItem=function(k,v){if(!shown&&k===UI)"))
+        assertTrue(script.contains("dbg('local saved')"))
+    }
+
+    @Test
+    fun `sidebar mark uses the full key and only safe ids`() {
+        val env = "6de4d82c-36b7-49ea-afd8-b194379ae9aa"
+        val route = T3Routes.ThreadRoute(env, "mcp:1c760312-ab")
+        assertEquals("$env:mcp:1c760312-ab", T3SidebarMark.key(route))
+        assertTrue(T3SidebarMark.script(route).endsWith("window.__t3SidebarMark('$env:mcp:1c760312-ab');})();"))
+        assertTrue(T3SidebarMark.script(route).contains("li.getAttribute('data-thread-item')===cur"))
+        assertNull(T3SidebarMark.key(T3Routes.ThreadRoute(env, "a');alert(1);('")))
+        assertNull(T3SidebarMark.key(T3Routes.ThreadRoute("x'y", "t1")))
+        assertTrue(T3SidebarMark.script(null).endsWith("window.__t3SidebarMark(null);})();"))
+    }
+
+    @Test
+    fun `edit reads the text prop only inside the copy button component`() {
+        val script = T3MessageActions.script()
+        assertTrue(script.contains("if(typeof f.type==='string'&&f.stateNode!==el)return null;"))
     }
 
     @Test

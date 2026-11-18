@@ -10,6 +10,7 @@ This plugin is not affiliated with or endorsed by the T3 Code project.
 
 - Plan: [`PLAN.md`](PLAN.md)
 - Phase 0 spike results: [`docs/spike-phase-0.md`](docs/spike-phase-0.md)
+- Names of the UI objects (IDE window, T3 sidebar, editor tabs, message rows, composer): [`docs/ui-map.svg`](docs/ui-map.svg)
 
 ## Requirements
 

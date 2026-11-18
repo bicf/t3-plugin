@@ -26,7 +26,9 @@
 - The "T3 Code" tool window shows only the T3 sidebar, and opens on the left. New threads, drafts and the T3 settings, pull requests and usage pages also open in editor tabs.
 - Editor tabs show the conversation without the T3 sidebars. "Toggle right panel" opens the right panel of T3 (browser, device, pull requests, side chat) in the new "T3 Workspace" tool window.
 - The "Diff" panel surface opens the IDE diff of the working tree. The "Terminal", "Files" and "Diff" items of the empty right panel open the IDE tools.
-- Each message of the user has "Copy message" and line wrap buttons in its box, at the top right.
+- The action row under each message of the user (time, "Copy message", "Copy prompt link") has 2 more buttons: "Disable line wrap" / "Wrap lines" and "Edit in composer". The row shows on mouse hover or focus. "Edit in composer" puts the original text of the message in the composer, after the draft; it sends nothing.
+- The T3 sidebar of the tool window marks the thread of the last selected T3 editor tab.
+- [`docs/ui-map.svg`](https://github.com/bicf/t3-plugin/blob/main/docs/ui-map.svg): a map of the IDE window with the names of the T3 and plugin objects.
 
 ### Fixed
 - Copy buttons in the T3 web UI put the text on the system clipboard.
@@ -37,3 +39,5 @@
 - The tool window opens threads started from the CLI, with ids such as `mcp:1c760312-…`.
 - A click on the project in the breadcrumb of a conversation opens one draft tab, not several.
 - A tab that T3 redirects to another page without a click shows that page, and does not reload in a loop.
+- A thread keeps its unread state ("Done", "Failed") when its run completes while its editor tab is in the background. The tab marks the thread as read when it shows on screen. A hidden tab holds the last "thread visited" command of each thread and sends it when the tab shows.
+- The message box of the user has no plugin buttons: they never cover the text.

@@ -52,6 +52,7 @@ import org.cef.network.CefRequest
 import java.awt.CardLayout
 import java.awt.datatransfer.DataFlavor
 import java.awt.datatransfer.StringSelection
+import java.awt.event.HierarchyEvent
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
 import javax.swing.JComponent
@@ -80,7 +81,11 @@ import javax.swing.JPanel
  * - The IDE colors go to the page at each page load, Look and Feel change and color scheme change (see [T3ThemeSync]).
  * - Copy and paste in the page use the IDE clipboard through the plugin (see [T3ClipboardBridge]). On Linux, the
  *   selection and the middle-click paste use the primary selection of the IDE.
- * - Each message of the user gets "Copy message" and "Wrap lines" buttons (see [T3MessageActions]).
+ * - The action row of each message of the user gets "Wrap lines" and "Edit in composer" buttons (see [T3MessageActions]).
+ * - Editor tab: the page sends the "thread visited" command only while the tab is on screen (see [T3VisitGate]).
+ *   A thread that completes in a tab in the background keeps its unread state.
+ * - "T3 Workspace": the page never sends the "thread visited" command; the tab of the same thread sends it.
+ * - Tool window with editor tabs: the sidebar marks the thread of the last selected T3 tab (see [T3SidebarMark]).
  * - Without editor tabs, in a narrow tool window, the left sidebar of the page gets a drag handle (see [T3SidebarResize]).
  * - With "Use IDE tools", file links, "Open in …", diffs, the terminal and Git use the IDE (see [T3IdeBridge]).
  *   With a remote server, only the diff uses the IDE: the files are on another machine.
@@ -129,6 +134,13 @@ internal class T3BrowserPanel(
     private var initialTab: String? = null
     private var job: Job? = null
 
+    /**
+     * True while the browser of an editor tab is on screen: the page may send the "thread visited" command
+     * (see [T3VisitGate]). Only an editor tab sets it; for the other targets it stays false. The CEF threads read it.
+     */
+    @Volatile
+    private var pageShown = false
+
     @Volatile
     private var disposed = false
 
@@ -170,6 +182,11 @@ internal class T3BrowserPanel(
         browser.cefBrowser.uiComponent.addMouseListener(object : MouseAdapter() {
             override fun mousePressed(e: MouseEvent) = browser.cefBrowser.setFocus(true)
         })
+        if (target is T3PageTarget.Tab) {
+            browser.component.addHierarchyListener { e ->
+                if (e.changeFlags and HierarchyEvent.SHOWING_CHANGED.toLong() != 0L) onShowingChanged()
+            }
+        }
         val bus = ApplicationManager.getApplication().messageBus.connect(this)
         bus.subscribe(LafManagerListener.TOPIC, LafManagerListener { onEdt(::applyTheme) })
         bus.subscribe(EditorColorsManager.TOPIC, EditorColorsListener { onEdt(::applyTheme) })
@@ -220,6 +237,22 @@ internal class T3BrowserPanel(
         val serverOrigin = origin ?: return
         val path = environmentId?.let { T3Routes.threadPath(it, threadId) } ?: return
         if (phase == Phase.READY) browser.loadURL(serverOrigin + path)
+    }
+
+    /**
+     * Marks [thread] in the T3 sidebar of the tool window, or removes the mark when it is null (see [T3SidebarMark]).
+     * Only the tool window with editor tabs shows the mark. Call it on the EDT.
+     */
+    fun markThread(thread: T3Routes.ThreadRoute?) {
+        if (phase == Phase.READY && layout == T3Layout.Mode.NAVIGATOR) execute(T3SidebarMark.script(thread))
+    }
+
+    /** The browser of an editor tab went on or off screen: the visit gate of the page follows it. */
+    private fun onShowingChanged() {
+        val shown = browser.component.isShowing
+        if (shown == pageShown) return
+        pageShown = shown
+        if (phase == Phase.READY) execute(T3VisitGate.script(shown))
     }
 
     /** Loads the page again; before the page is ready, connects again. Call it on the EDT. */
@@ -424,6 +457,8 @@ internal class T3BrowserPanel(
         execute(T3MessageActions.script())
         val mode = layout
         if (mode != null) execute(T3Layout.script(mode, report)) else execute(T3SidebarResize.script())
+        if (mode == T3Layout.Mode.NAVIGATOR) execute(T3SidebarMark.script(project.service<T3PageTabs>().lastThreadRoute()))
+        if (pageFile != null) execute(T3VisitGate.script(pageShown))
         execute(T3RouteWatch.script(report))
         val features = ideFeatures()
         if (features.any) execute(T3IdeBridge.script(features, report))
@@ -609,7 +644,7 @@ internal class T3BrowserPanel(
     }
 
     /**
-     * Installs the layout and the IDE bridge before the scripts of the page run. Reasons: the T3 client keeps the `send`
+     * Installs the layout, the visit gate and the IDE bridge before the scripts of the page run. Reasons: the T3 client keeps the `send`
      * function of its WebSocket when it creates the socket, so a patch of `WebSocket.prototype.send` after the page load
      * never sees an RPC message (verified with runIde); T3 reads its media query for the sidebar when it starts.
      * Runs on a CEF thread; [layout] and [ideFeatures] read only the target, settings and [remote].
@@ -619,6 +654,7 @@ internal class T3BrowserPanel(
         if (!url.startsWith("$serverOrigin/") || url.startsWith(serverOrigin + T3Session.PATH)) return
         if (url.startsWith("$serverOrigin/pair")) return
         layout?.let { execute(T3Layout.earlyScript(it)) }
+        if (pageFile != null) execute(T3VisitGate.script(pageShown))
         val features = ideFeatures()
         if (features.any) execute(T3IdeBridge.script(features) { expression -> pageQuery.inject(expression) })
     }
