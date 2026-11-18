@@ -13,7 +13,8 @@ import javax.swing.Icon
  * The file exists only in memory: the IDE does not reopen it after a restart.
  *
  * Rules:
- * - [pagePath] is a tab page. It changes only inside the same tab key, or from a draft to the thread that the draft became.
+ * - [pagePath] is a tab page. It changes inside the same tab key, from a draft to the thread that the draft became, or
+ *   to the page that T3 shows in place of the page of the tab (a redirect without a click).
  * - [title] is the thread title that the page shows, or a fixed name for a draft and an app page.
  *   The tab shows it through [getPresentableName].
  */

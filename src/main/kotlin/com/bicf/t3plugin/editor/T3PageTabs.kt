@@ -57,7 +57,7 @@ class T3PageTabs(private val project: Project) {
     }
 
     /**
-     * The page of [file] is now [path]: a page of the same key, or the thread that a draft became.
+     * The page of [file] is now [path]: a page of the same key, the thread that a draft became, or the page of a redirect.
      * The panel of the tab shows the new page.
      */
     fun changePath(file: T3PageFile, path: String) {

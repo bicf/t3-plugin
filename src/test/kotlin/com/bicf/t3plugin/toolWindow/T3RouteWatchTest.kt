@@ -91,9 +91,26 @@ class T3RouteWatchTest {
     }
 
     @Test
-    fun `reports the route and the title through the report function`() {
+    fun `reports the route with its history index and the title through the report function`() {
         val script = T3RouteWatch.script { "send($it)" }
-        assertTrue(script.contains("var r='${T3RouteWatch.ROUTE_PREFIX}'+p;send(r);"))
+        assertTrue(script.contains("var r='${T3RouteWatch.ROUTE_PREFIX}'+n+':'+p;send(r);"))
+        assertTrue(script.contains("h.__TSR_index"))
         assertTrue(script.contains("var s='${T3RouteWatch.TITLE_PREFIX}'+t;send(s);"))
+    }
+
+    @Test
+    fun `reports a draft only after T3 saved it, or after the wait`() {
+        val script = T3RouteWatch.script { "send($it)" }
+        assertTrue(script.contains("k.indexOf('t3code:composer-drafts')===0"))
+        assertTrue(script.contains("Date.now()-since>=${T3RouteWatch.DRAFT_WAIT_MS}"))
+    }
+
+    @Test
+    fun `reads the history index and the path of a route`() {
+        assertEquals(T3RouteWatch.Route(0, "/draft/d1"), T3RouteWatch.parseRoute("0:/draft/d1"))
+        assertEquals(T3RouteWatch.Route(3, "/$env/mcp:1c76"), T3RouteWatch.parseRoute("3:/$env/mcp:1c76"))
+        assertTrue(T3RouteWatch.parseRoute("2:/x")!!.pushed)
+        assertTrue(!T3RouteWatch.parseRoute("0:/x")!!.pushed)
+        listOf("/draft/d1", ":/x", "-1:/x", "a:/x", "1:x", "1").forEach { assertNull(it, T3RouteWatch.parseRoute(it)) }
     }
 }
