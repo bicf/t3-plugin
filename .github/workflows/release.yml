@@ -31,6 +31,40 @@ jobs:
         with:
           ref: ${{ github.event.release.tag_name }}
 
+      # The Marketplace accepts each plugin version once, in any channel. If the version of the tag
+      # (gradle.properties) is already there, for example a pre-release promoted to a release, skip the release steps.
+      - name: Check Marketplace Version
+        id: marketplace
+        env:
+          PLUGIN_ID: com.bicf.t3plugin
+        run: |
+          set -euo pipefail
+          VERSION="$(sed -n 's/^version *= *//p' gradle.properties)"
+          API="https://plugins.jetbrains.com/api/plugins"
+          EXISTS=false
+          STATUS="$(curl -s -o "$RUNNER_TEMP/plugin.json" -w '%{http_code}' "$API/intellij/$PLUGIN_ID")"
+          if [ "$STATUS" = 200 ]; then
+            ID="$(jq -r '.id' "$RUNNER_TEMP/plugin.json")"
+            CHANNELS="$(curl -sf "$API/$ID/channels")"
+            while IFS= read -r CHANNEL; do
+              PAGE=1
+              while :; do
+                UPDATES="$(curl -sf --get "$API/$ID/updates" --data-urlencode "channel=$CHANNEL" --data "size=100" --data "page=$PAGE")"
+                if jq -e --arg v "$VERSION" 'any(.[]; .version == $v)' <<< "$UPDATES" > /dev/null; then
+                  EXISTS=true
+                  echo "::notice::Version $VERSION is already on the Marketplace, channel '${CHANNEL:-default}'. The release steps are skipped."
+                  break 2
+                fi
+                [ "$(jq 'length' <<< "$UPDATES")" -lt 100 ] && break
+                PAGE=$((PAGE + 1))
+              done
+            done < <(jq -r '.[]' <<< "$CHANNELS")
+          elif [ "$STATUS" != 404 ]; then
+            echo "::error::The Marketplace API returned HTTP $STATUS for $PLUGIN_ID."
+            exit 1
+          fi
+          echo "exists=$EXISTS" >> "$GITHUB_OUTPUT"
+
       # Set up the Java environment for the next steps
       - name: Setup Java
         uses: actions/setup-java@v6
@@ -46,7 +80,7 @@ jobs:
 
       # Update the Unreleased section with the current release note
       - name: Patch Changelog
-        if: ${{ github.event.release.body != '' }}
+        if: ${{ steps.marketplace.outputs.exists != 'true' && github.event.release.body != '' }}
         env:
           CHANGELOG: ${{ github.event.release.body }}
         run: |
@@ -58,6 +92,7 @@ jobs:
 
       # Publish the plugin to JetBrains Marketplace: a GitHub pre-release goes to the "beta" channel, a release to "default"
       - name: Publish Plugin
+        if: ${{ steps.marketplace.outputs.exists != 'true' }}
         env:
           PUBLISH_CHANNEL: ${{ github.event.release.prerelease && 'beta' || 'default' }}
           PUBLISH_TOKEN: ${{ secrets.PUBLISH_TOKEN }}
@@ -68,13 +103,14 @@ jobs:
 
       # Upload an artifact as a release asset
       - name: Upload Release Asset
+        if: ${{ steps.marketplace.outputs.exists != 'true' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh release upload ${{ github.event.release.tag_name }} ./build/distributions/*
 
       # Create a pull request
       - name: Create Pull Request
-        if: ${{ github.event.release.body != '' }}
+        if: ${{ steps.marketplace.outputs.exists != 'true' && github.event.release.body != '' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
