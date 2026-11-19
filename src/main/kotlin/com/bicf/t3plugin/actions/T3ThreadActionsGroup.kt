@@ -43,15 +43,27 @@ class T3ThreadActionsGroup : ActionGroup(), DumbAware {
             val action: AnAction = if (item.children.isEmpty()) {
                 ItemAction(item, file, host)
             } else {
-                DefaultActionGroup(actions(item.children, file, host)).apply {
-                    isPopup = true
-                    // A label of T3 has no mnemonic: an underscore stays an underscore.
-                    templatePresentation.setText(item.label, false)
-                    templatePresentation.isEnabled = item.enabled
-                }
+                SubmenuGroup(item, actions(item.children, file, host))
             }
             if (item.separatorBefore) listOf(Separator.getInstance(), action) else listOf(action)
         }
+
+    /** A T3 item with children. The platform forbids a change of the enabled state on the template presentation. */
+    private class SubmenuGroup(private val item: T3ThreadMenu.Item, children: List<AnAction>) :
+        DefaultActionGroup(children), DumbAware {
+
+        init {
+            isPopup = true
+            // A label of T3 has no mnemonic: an underscore stays an underscore.
+            templatePresentation.setText(item.label, false)
+        }
+
+        override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.BGT
+
+        override fun update(e: AnActionEvent) {
+            e.presentation.isEnabled = item.enabled
+        }
+    }
 
     private class ItemAction(
         private val item: T3ThreadMenu.Item,
