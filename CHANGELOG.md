@@ -3,7 +3,11 @@
 # T3 Code Host Changelog
 
 ## [Unreleased]
+
+## [0.3.0] - 2026-11-19
+
 ### Added
+
 - Initial scaffold created from [IntelliJ Platform Plugin Template](https://github.com/JetBrains/intellij-platform-plugin-template)
 - `T3ServerService`: connects to a running T3 server, or starts `t3 serve --no-browser` when no server answers.
 - `T3PairingService`: creates a one-time pairing link with `t3 auth pairing create`.
@@ -35,6 +39,7 @@
 - Settings: "Open T3 projects in IDE windows" and "Open the worktree of a new thread in an IDE window", on by default.
 
 ### Fixed
+
 - Copy buttons in the T3 web UI put the text on the system clipboard.
 - Paste in the T3 web UI uses the IDE clipboard (text and images), not an old clipboard value. Ctrl+C in the page also writes to the IDE clipboard.
 - The text caret shows in the T3 composer after a click in the page.
@@ -46,3 +51,6 @@
 - A thread keeps its unread state ("Done", "Failed") when its run completes while its editor tab is in the background. The tab marks the thread as read when it shows on screen. A hidden tab holds the last "thread visited" command of each thread and sends it when the tab shows.
 - The message box of the user has no plugin buttons: they never cover the text.
 - The hover styles of T3 work in the IDE browser. Before, the browser reported no mouse, so the action row under a message of the user showed only with the focus in the message, and rows and buttons had no hover color. The `matchMedia` of the page gives the same answer, so T3 reports a hover device to its tool views.
+
+[Unreleased]: https://github.com/bicf/t3-plugin/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/bicf/t3-plugin/commits/v0.3.0
