@@ -48,7 +48,7 @@ out('partialReports', reports.length);
 ws.receive(text.slice(90));
 ws.receive(JSON.stringify({ _tag: 'Chunk', requestId: '1', values: [{ kind: 'project.updated', project: { id: 'p2', workspaceRoot: '/work/new' } }] }));
 ws.receive(JSON.stringify({ _tag: 'Chunk', requestId: '1', values: [
-  { kind: 'thread.updated', location: 'active', thread: { id: 't4', projectId: 'p1', worktreePath: '/wt/b', creationSource: 'web', lineage: { parentThreadId: null } } },
+  { kind: 'thread.updated', location: 'active', thread: { id: 't4', projectId: 'p1', worktreePath: '/wt/b', creationSource: 'web', createdAt: '2026-11-19T17:46:11.000Z', lineage: { parentThreadId: null } } },
   { kind: 'thread.updated', location: 'active', thread: { id: 't5', projectId: 'p1', worktreePath: '/wt/c', creationSource: 'web', lineage: { parentThreadId: 't4', relationshipToParent: 'subagent' } } },
   { kind: 'thread.updated', location: 'active', thread: { id: 't6', projectId: 'p1', worktreePath: '/wt/d', creationSource: 'web', lineage: {}, delegatedFrom: { threadId: 't1' } } },
 ] }));

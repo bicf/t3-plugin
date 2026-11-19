@@ -12,6 +12,7 @@ import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import java.nio.file.Files
 import java.nio.file.Path
+import java.time.Instant
 
 class T3ShellModelAndWorktreesTest {
 
@@ -49,8 +50,24 @@ class T3ShellModelAndWorktreesTest {
         val thread = T3ShellModel.Thread("t1", "p1", "/wt/b", true)
         assertEquals(listOf(T3ShellModel.Change.WorktreeCreated(thread, "/work/demo")), model.apply(worktree))
         assertEquals(emptyList<T3ShellModel.Change>(), model.apply(worktree))
-        val newThread = update("""{"t":[["t3","p1","/wt/c",true]]}""")
-        assertEquals(1, model.apply(newThread).size)
+    }
+
+    @Test
+    fun `reports an unknown thread only when it was created after the first snapshot`() {
+        val start = Instant.parse("2026-11-19T17:50:00Z")
+        val model = T3ShellModel { start }.apply { apply(snapshot) }
+        // An older settled thread is not in the snapshot: its first update is not a new worktree.
+        val settled = update("""{"t":[["t7","p1","/wt/old",true,"2026-11-19T17:10:05.589Z"]]}""")
+        assertEquals(emptyList<T3ShellModel.Change>(), model.apply(settled))
+        assertEquals(emptyList<T3ShellModel.Change>(), model.apply(update("""{"t":[["t8","p1","/wt/x",true]]}""")))
+        assertEquals(emptyList<T3ShellModel.Change>(), model.apply(update("""{"t":[["t9","p1","/wt/y",true,"not a time"]]}""")))
+        // A known thread that gets another worktree is reported.
+        assertEquals(1, model.apply(update("""{"t":[["t7","p1","/wt/new",true,"2026-11-19T17:10:05.589Z"]]}""")).size)
+        // A new thread is reported.
+        val created = Instant.parse("2026-11-19T17:51:00Z")
+        val newThread = update("""{"t":[["t10","p1","/wt/c",true,"2026-11-19T17:51:00Z"]]}""")
+        val thread = T3ShellModel.Thread("t10", "p1", "/wt/c", true, created)
+        assertEquals(listOf(T3ShellModel.Change.WorktreeCreated(thread, "/work/demo")), model.apply(newThread))
     }
 
     @Test

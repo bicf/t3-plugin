@@ -15,8 +15,11 @@ package com.bicf.t3plugin.toolWindow
  * - The script reads the messages that the server sends, and joins the parts of a long message (a part starts with
  *   U+001E; the last frame of a message does not). It parses only a message with one of the 3 kinds above.
  * - It sends [PREFIX] + `{"snap":true,"p":[…],"t":[…]}` for a snapshot, and `{"p":[…]}` or `{"t":[…]}` for an update.
- *   A project is `[id, workspaceRoot]`; a thread is `[id, projectId, worktreePath|null, user]`, where `user` is true for a
- *   top-level thread from a T3 client (no parent, not delegated, `creationSource` `web` or `mobile`).
+ *   A project is `[id, workspaceRoot]`; a thread is `[id, projectId, worktreePath|null, user, createdAt|null]`, where
+ *   `user` is true for a top-level thread from a T3 client (no parent, not delegated, `creationSource` `web` or
+ *   `mobile`).
+ * - The snapshot has no older settled thread (only their count, `olderSettled`): the first update of such a thread is
+ *   the first record of it that the plugin receives.
  * - The script changes no message.
  */
 internal object T3ShellWatch {
@@ -30,7 +33,7 @@ internal object T3ShellWatch {
         function proj(p){return [String(p.id),str(p.workspaceRoot)];}
         function thr(t){var l=t.lineage||{},s=t.creationSource;
           return [String(t.id),String(t.projectId),str(t.worktreePath),
-            !l.parentThreadId&&!t.delegatedFrom&&(s==='web'||s==='mobile')];}
+            !l.parentThreadId&&!t.delegatedFrom&&(s==='web'||s==='mobile'),str(t.createdAt)];}
         function emit(o){var r='$PREFIX'+JSON.stringify(o);${report("r")};}
         function visit(o,d){if(!o||typeof o!=='object'||d>6)return;
           if(Array.isArray(o)){for(var i=0;i<o.length;i++)visit(o[i],d+1);return;}

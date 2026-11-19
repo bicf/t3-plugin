@@ -75,11 +75,11 @@ class T3ShellMenuScriptTest {
     @Test
     fun `the shell watch reports the snapshot, a new project and the threads with their origin`() {
         val expected = listOf(
-            """shell:{"snap":true,"p":[["p1","/work/demo"]],"t":[["t1","p1",null,true],["t2","p1","/wt/a",false],["t3","p1",null,true]]}""",
+            """shell:{"snap":true,"p":[["p1","/work/demo"]],"t":[["t1","p1",null,true,null],["t2","p1","/wt/a",false,null],["t3","p1",null,true,null]]}""",
             """shell:{"p":[["p2","/work/new"]]}""",
-            """shell:{"t":[["t4","p1","/wt/b",true]]}""",
-            """shell:{"t":[["t5","p1","/wt/c",false]]}""",
-            """shell:{"t":[["t6","p1","/wt/d",false]]}""",
+            """shell:{"t":[["t4","p1","/wt/b",true,"2026-11-19T17:46:11.000Z"]]}""",
+            """shell:{"t":[["t5","p1","/wt/c",false,null]]}""",
+            """shell:{"t":[["t6","p1","/wt/d",false,null]]}""",
         )
         assertEquals(expected, strings("reports"))
     }

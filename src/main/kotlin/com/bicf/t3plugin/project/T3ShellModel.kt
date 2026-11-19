@@ -7,6 +7,7 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.contentOrNull
+import java.time.Instant
 
 /**
  * The projects and threads of the T3 server, as the T3 sidebar receives them (see
@@ -19,15 +20,26 @@ import kotlinx.serialization.json.contentOrNull
  *   "Turn into project", or `t3 project add`).
  * - [Change.WorktreeCreated]: a thread of the user gets a worktree path that it did not have (a new thread in
  *   "New worktree" mode). Threads of an agent (subagent, fork, delegated or MCP thread) are not reported.
+ *   The snapshot has no older settled thread: a thread that the model does not know is reported only when it was created
+ *   after the first snapshot ([Thread.createdAt]). Otherwise its first update would look like a new worktree.
  * - Each change is reported once, also when several IDE windows send the same update.
  * Not thread-safe: the caller synchronizes.
  */
-class T3ShellModel {
+class T3ShellModel(private val clock: () -> Instant = Instant::now) {
 
     data class Project(val id: String, val root: String)
 
-    /** [userCreated]: a top-level thread that the user started in a T3 client (web or mobile). */
-    data class Thread(val id: String, val projectId: String, val worktreePath: String?, val userCreated: Boolean)
+    /**
+     * [userCreated]: a top-level thread that the user started in a T3 client (web or mobile).
+     * [createdAt]: the creation time of the thread, null when T3 does not send a valid one.
+     */
+    data class Thread(
+        val id: String,
+        val projectId: String,
+        val worktreePath: String?,
+        val userCreated: Boolean,
+        val createdAt: Instant? = null,
+    )
 
     /** One message of the shell watch: a snapshot, or the projects and threads that changed. */
     data class Update(val snapshot: Boolean, val projects: List<Project>, val threads: List<Thread>)
@@ -41,9 +53,15 @@ class T3ShellModel {
     private val threads = HashMap<String, Thread>()
     private var started = false
 
+    /** The time of the first snapshot. */
+    private var startedAt: Instant? = null
+
     fun apply(update: Update): List<Change> {
         val report = started && !update.snapshot
-        if (update.snapshot) started = true
+        if (update.snapshot && !started) {
+            started = true
+            startedAt = clock()
+        }
         val changes = ArrayList<Change>()
         update.projects.forEach { project ->
             if (projects.put(project.id, project) == null && report) changes += Change.ProjectAdded(project)
@@ -51,7 +69,9 @@ class T3ShellModel {
         update.threads.forEach { thread ->
             val old = threads.put(thread.id, thread)
             val path = thread.worktreePath
-            if (report && thread.userCreated && path != null && old?.worktreePath != path) {
+            val createdLater = thread.createdAt?.let { created -> startedAt?.let { !created.isBefore(it) } } == true
+            val known = old != null || createdLater
+            if (report && known && thread.userCreated && path != null && old?.worktreePath != path) {
                 changes += Change.WorktreeCreated(thread, projects[thread.projectId]?.root)
             }
         }
@@ -71,7 +91,8 @@ class T3ShellModel {
         private const val MAX_PATH = 4096
 
         /**
-         * Reads a message of the shell watch: `{"snap":true?,"p":[[id,root],…],"t":[[id,projectId,worktree|null,user],…]}`.
+         * Reads a message of the shell watch:
+         * `{"snap":true?,"p":[[id,root],…],"t":[[id,projectId,worktree|null,user,createdAt|null],…]}`.
          * Returns null for invalid JSON. Skips each record with a missing or too long field.
          */
         fun parse(json: String): Update? {
@@ -89,7 +110,8 @@ class T3ShellModel {
                 val projectId = fields.text(1, MAX_ID) ?: return@mapNotNull null
                 val worktree = fields.text(2, MAX_PATH)?.takeIf { it.isNotEmpty() }
                 val user = (fields.getOrNull(3) as? JsonPrimitive)?.booleanOrNull == true
-                Thread(id, projectId, worktree, user)
+                val createdAt = fields.text(4, 64)?.let { runCatching { Instant.parse(it) }.getOrNull() }
+                Thread(id, projectId, worktree, user, createdAt)
             }
             return Update(snapshot, projects, threads)
         }
