@@ -31,7 +31,7 @@
 - [`docs/ui-map.svg`](https://github.com/bicf/t3-plugin/blob/main/docs/ui-map.svg): a map of the IDE window with the names of the T3 and plugin objects.
 - The menu of a T3 conversation tab has the items of the "Thread actions" menu of T3 (rename, pin, settle, snooze, archive, delete, copy, …), with their state and submenus. T3 runs the action, with its own confirmations.
 - One IDE window per T3 project, with a local server. A new T3 project ("Add existing project", "New project") opens in a new IDE window. A thread or a new thread of another project, selected in the T3 sidebar, opens in the IDE window of that project; the IDE opens the window when it is not open.
-- The T3 worktree of a new thread opens in a new IDE window, with the thread in an editor tab. The window of a T3 worktree adds no T3 project, and "Ask T3 About Selection…" sends the selection to the thread of the worktree.
+- The T3 worktree of a new thread opens in a new IDE window, with the thread in an editor tab. The tab of the same thread closes in the other IDE windows. The window of a T3 worktree adds no T3 project, and "Ask T3 About Selection…" sends the selection to the thread of the worktree.
 - Settings: "Open T3 projects in IDE windows" and "Open the worktree of a new thread in an IDE window", on by default.
 
 ### Fixed

@@ -38,7 +38,8 @@ import java.util.concurrent.ConcurrentHashMap
  *     sidebar.
  * - "Open the worktree of a new thread in an IDE window" (Settings): when a thread of the user gets a T3 worktree
  *   (see [T3ShellModel]), the worktree opens in a new IDE window as a Git worktree of the project (with the Git plugin,
- *   as "Open" in the "Worktrees" tab of the Git tool window), and the thread opens there in an editor tab.
+ *   as "Open" in the "Worktrees" tab of the Git tool window), and the thread opens there in an editor tab. The tab of the
+ *   same thread closes in the other IDE windows, also a draft tab that becomes the tab of this thread later.
  * - The plugin opens the editor tab of a new window when the window is ready (see [Startup]).
  * Call the functions on the EDT, except [onProjectOpened].
  */
@@ -109,11 +110,20 @@ class T3ProjectWindows {
         return synchronized(model) { model.threadInWorktree(folder.toString(), FileUtil::pathsEqual)?.id }
     }
 
+    /**
+     * True when the thread [threadId] belongs to the window of its T3 worktree, and that window is not [project].
+     * A tab of [project] that becomes the tab of this thread closes (see [T3PageTabs.changePath]).
+     */
+    fun inOtherWorktreeWindow(project: Project, threadId: String): Boolean {
+        val base = project.basePath ?: return false
+        return worktreeThreads.any { (folder, id) -> id == threadId && !FileUtil.pathsEqual(folder, base) && openProject(folder) != null }
+    }
+
     /** The page for the editor tab of [project], when the plugin opened its window. Runs on any thread. */
     internal fun onProjectOpened(project: Project) {
         val folder = folder(project.basePath) ?: return
         val page = pending.remove(key(folder)) ?: return
-        showInWindow(project, page.ifEmpty { null }, showToolWindow = true)
+        showInWindow(project, page.ifEmpty { null }, showToolWindow = true, closeElsewhere = worktreeThreads.containsKey(key(folder)))
     }
 
     /**
@@ -149,12 +159,21 @@ class T3ProjectWindows {
         }, ModalityState.nonModal())
     }
 
-    private fun showInWindow(project: Project, page: String?, showToolWindow: Boolean) {
+    /**
+     * Shows [page] in an editor tab of [project]. [closeElsewhere]: the window of a T3 worktree opens its thread, and
+     * the tab of the same thread closes in the other IDE windows (the window where the user started the thread).
+     */
+    private fun showInWindow(project: Project, page: String?, showToolWindow: Boolean, closeElsewhere: Boolean = false) {
         val manager = ToolWindowManager.getInstance(project)
         manager.invokeLater {
             if (project.isDisposed) return@invokeLater
             if (showToolWindow) manager.getToolWindow(T3ToolWindowFactory.ID)?.show()
-            if (page != null) project.service<T3PageTabs>().open(page)
+            val file = page?.let { project.service<T3PageTabs>().open(it) } ?: return@invokeLater
+            if (!closeElsewhere) return@invokeLater
+            val key = file.page.key
+            ProjectManager.getInstance().openProjects.filter { it !== project && !it.isDisposed }.forEach { other ->
+                other.serviceIfCreated<T3PageTabs>()?.let { tabs -> tabs.find(key)?.let(tabs::close) }
+            }
         }
     }
 
