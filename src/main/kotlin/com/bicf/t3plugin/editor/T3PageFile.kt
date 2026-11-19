@@ -2,6 +2,8 @@ package com.bicf.t3plugin.editor
 
 import com.bicf.t3plugin.T3Bundle
 import com.bicf.t3plugin.toolWindow.T3Routes
+import com.bicf.t3plugin.toolWindow.T3ThreadMenu
+import java.util.concurrent.CopyOnWriteArrayList
 import com.intellij.openapi.fileTypes.FileType
 import com.intellij.openapi.util.IconLoader
 import com.intellij.openapi.vfs.VirtualFile
@@ -29,6 +31,17 @@ class T3PageFile(path: String, title: String? = null) : LightVirtualFile("T3 pag
 
     @Volatile
     var title: String = title?.takeIf { it.isNotBlank() } ?: defaultTitle(path)
+
+    // One menu per editor of the file: a split window shows the file in 2 editors.
+    private val threadMenus = CopyOnWriteArrayList<T3ThreadMenu.Host>()
+
+    /** The "Thread actions" menu of the page in the tab, for the menu of the tab. Null while no editor shows the file. */
+    val threadMenu: T3ThreadMenu.Host?
+        get() = threadMenus.lastOrNull()
+
+    internal fun addThreadMenu(menu: T3ThreadMenu.Host) = threadMenus.add(menu)
+
+    internal fun removeThreadMenu(menu: T3ThreadMenu.Host) = threadMenus.remove(menu)
 
     init {
         require(T3Routes.tabPage(path) != null) { "Not a tab page" }

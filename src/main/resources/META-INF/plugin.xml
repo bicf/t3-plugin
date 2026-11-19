@@ -9,6 +9,9 @@
         <p>Shows the <a href="https://t3.codes">T3 Code</a> web UI in JetBrains IDEs. Features:</p>
         <ul>
             <li>The T3 sidebar in the "T3 Code" tool window, and each conversation in an editor tab.</li>
+            <li>The menu of a conversation tab has the thread actions of T3: rename, pin, settle, snooze, archive, delete, copy.</li>
+            <li>With a local server, one IDE window per T3 project: a new T3 project opens in a new IDE window, and the
+                worktree of a new thread opens in a new IDE window as a Git worktree.</li>
             <li>Diffs of T3 open in the IDE editor.</li>
             <li>With a local server, file links open in the IDE editor, and the T3 terminal and Git actions use the IDE terminal and Git, when these plugins are installed.</li>
             <li>With a local server, "Ask T3 About Selection" in the editor context menu sends the selected code to T3.</li>
@@ -48,6 +51,7 @@
                                 implementation="com.bicf.t3plugin.statusBar.T3StatusWidgetFactory"/>
         <notificationGroup id="T3 Code" displayType="BALLOON" key="notification.group"/>
         <fileEditorProvider implementation="com.bicf.t3plugin.editor.T3PageEditorProvider"/>
+        <postStartupActivity implementation="com.bicf.t3plugin.project.T3ProjectWindows$Startup"/>
     </extensions>
 
     <projectListeners>
@@ -60,5 +64,10 @@
                 class="com.bicf.t3plugin.actions.T3AskAboutSelectionAction">
             <add-to-group group-id="EditorPopupMenu" anchor="last"/>
         </action>
+        <!-- The items of the "Thread actions" menu of T3, at the top of the menu of a T3 thread tab. -->
+        <group id="com.bicf.t3plugin.ThreadActions"
+               class="com.bicf.t3plugin.actions.T3ThreadActionsGroup">
+            <add-to-group group-id="EditorTabPopupMenu" anchor="first"/>
+        </group>
     </actions>
 </idea-plugin>

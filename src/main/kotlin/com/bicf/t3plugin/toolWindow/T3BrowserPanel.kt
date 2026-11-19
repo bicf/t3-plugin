@@ -10,6 +10,7 @@ import com.bicf.t3plugin.ide.T3IdeTools
 import com.bicf.t3plugin.pairing.PairingLink
 import com.bicf.t3plugin.pairing.T3PairingService
 import com.bicf.t3plugin.project.T3ProjectBinder
+import com.bicf.t3plugin.project.T3ProjectWindows
 import com.bicf.t3plugin.server.T3Cli
 import com.bicf.t3plugin.server.T3Home
 import com.bicf.t3plugin.server.T3ServerService
@@ -87,6 +88,11 @@ import javax.swing.JPanel
  *   A thread that completes in a tab in the background keeps its unread state.
  * - "T3 Workspace": the page never sends the "thread visited" command; the tab of the same thread sends it.
  * - Tool window with editor tabs: the sidebar marks the thread of the last selected T3 tab (see [T3SidebarMark]).
+ * - Tool window, local server: the sidebar reports its projects and threads (see [T3ShellWatch]). A new T3 project and
+ *   the worktree of a new thread open in new IDE windows, and a thread or a draft of another project opens in the IDE
+ *   window of its folder (see [T3ProjectWindows]).
+ * - Editor tab of a thread: the menu of the tab shows the "Thread actions" menu of T3 (see [T3ThreadMenu]). The page
+ *   answers on a CEF thread, without the EDT, because a background thread of the menu waits for the answer.
  * - Without editor tabs, in a narrow tool window, the left sidebar of the page gets a drag handle (see [T3SidebarResize]).
  * - With "Use IDE tools", file links, "Open in …", diffs, the terminal and Git use the IDE (see [T3IdeBridge]).
  *   With a remote server, only the diff uses the IDE: the files are on another machine.
@@ -122,6 +128,8 @@ internal class T3BrowserPanel(
     /** Carries text from the page to the plugin: the session JSON, a pairing result, or a bridge message. */
     private val pageQuery = JBCefJSQuery.create(browser as JBCefBrowserBase)
 
+    // The thread menu reads it on a background thread.
+    @Volatile
     private var phase = Phase.CONNECTING
 
     /** Origin of the server in use. The CEF threads read it in the link handlers. */
@@ -164,6 +172,13 @@ internal class T3BrowserPanel(
     /** The first page of the app in this panel, after a pairing or with a remote server. */
     private val homePath: String get() = if (layout == T3Layout.Mode.NAVIGATOR) T3Routes.NAVIGATOR_PATH else "/"
 
+    /** The "Thread actions" menu of the thread in an editor tab, for the menu of the tab (see [T3ThreadMenu]). */
+    val threadMenu: T3ThreadMenu.Host = T3ThreadMenu.Client(
+        execute = ::execute,
+        report = { expression -> pageQuery.inject(expression) },
+        ready = { !disposed && phase == Phase.READY && (target as? T3PageTarget.Tab)?.file?.page?.kind == T3Routes.PageKind.THREAD },
+    )
+
     init {
         // Disposal order is reverse: query, browser, then client.
         Disposer.register(this, client)
@@ -172,7 +187,12 @@ internal class T3BrowserPanel(
         component.add(status.component, STATUS_CARD)
         component.add(browser.component, BROWSER_CARD)
         pageQuery.addHandler { value ->
-            onEdt { onPageMessage(value) }
+            // A background thread waits for the thread menu: its answer never waits for the EDT.
+            if (value.startsWith(T3ThreadMenu.PREFIX)) {
+                (threadMenu as T3ThreadMenu.Client).onReply(value.removePrefix(T3ThreadMenu.PREFIX))
+            } else {
+                onEdt { onPageMessage(value) }
+            }
             null
         }
         browser.jbCefClient.addLoadHandler(LoadHandler(), browser.cefBrowser)
@@ -302,6 +322,9 @@ internal class T3BrowserPanel(
             value.startsWith(T3RouteWatch.TITLE_PREFIX) -> if (phase == Phase.READY) onTitle(value.removePrefix(T3RouteWatch.TITLE_PREFIX))
             value.startsWith(T3IdeRequest.PREFIX) -> if (phase == Phase.READY) onIdeRequest(value.removePrefix(T3IdeRequest.PREFIX))
             value.startsWith(T3Layout.PREFIX) -> if (phase == Phase.READY) onLayoutMessage(value.removePrefix(T3Layout.PREFIX))
+            value.startsWith(T3ShellWatch.PREFIX) -> if (navigator && !remote) {
+                service<T3ProjectWindows>().onShellMessage(project, environmentId, value.removePrefix(T3ShellWatch.PREFIX))
+            }
             else -> when (phase) {
                 Phase.CHECKING_SESSION -> onSessionBody(value)
                 Phase.PAIRING_PAGE -> when (value) {
@@ -355,7 +378,8 @@ internal class T3BrowserPanel(
     private fun startPath(binding: T3ProjectBinder.Binding): String {
         if (!T3Settings.getInstance().openThreadsInEditor) return binding.path
         val environment = binding.environmentId
-        val thread = binding.threadId
+        // The window of a T3 worktree opens the thread of the worktree, not the newest thread of the project.
+        val thread = binding.threadId ?: service<T3ProjectWindows>().worktreeThread(project.basePath)
         initialTab = if (environment != null && thread != null) T3Routes.threadPath(environment, thread) else null
         return T3Routes.NAVIGATOR_PATH
     }
@@ -485,7 +509,9 @@ internal class T3BrowserPanel(
         val tabs = project.service<T3PageTabs>()
         when (val t = target) {
             T3PageTarget.Navigator -> if (layout == T3Layout.Mode.NAVIGATOR && path != T3Routes.NAVIGATOR_PATH) {
-                tabs.open(path)
+                val windows = service<T3ProjectWindows>()
+                val folder = if (remote) null else windows.targetFolder(project, path, route.draftProjectId, route.draftWorktree)
+                if (folder != null) windows.openPage(project, folder, path) else tabs.open(path)
                 execute(T3RouteWatch.homeScript(T3Routes.NAVIGATOR_PATH))
             }
             is T3PageTarget.Tab -> onTabRoute(t.file, route, tabs)
@@ -656,6 +682,9 @@ internal class T3BrowserPanel(
         if (!url.startsWith("$serverOrigin/") || url.startsWith(serverOrigin + T3Session.PATH)) return
         if (url.startsWith("$serverOrigin/pair")) return
         layout?.let { execute(T3Layout.earlyScript(it)) }
+        if (navigator && T3ProjectWindows.watchEnabled(remote)) {
+            execute(T3ShellWatch.script { expression -> pageQuery.inject(expression) })
+        }
         if (pageFile != null) execute(T3VisitGate.script(pageShown))
         val features = ideFeatures()
         if (features.any) execute(T3IdeBridge.script(features) { expression -> pageQuery.inject(expression) })

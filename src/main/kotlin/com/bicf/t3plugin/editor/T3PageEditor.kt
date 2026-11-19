@@ -24,6 +24,7 @@ internal class T3PageEditor(project: Project, private val file: T3PageFile) : Us
 
     init {
         Disposer.register(this, panel)
+        file.addThreadMenu(panel.threadMenu)
     }
 
     override fun getComponent(): JComponent = panel.component
@@ -35,7 +36,9 @@ internal class T3PageEditor(project: Project, private val file: T3PageFile) : Us
     override fun isValid(): Boolean = true
     override fun addPropertyChangeListener(listener: PropertyChangeListener) = Unit
     override fun removePropertyChangeListener(listener: PropertyChangeListener) = Unit
-    override fun dispose() = Unit
+    override fun dispose() {
+        file.removeThreadMenu(panel.threadMenu)
+    }
 }
 
 /** Opens a [T3PageFile] in a [T3PageEditor]. Registered in plugin.xml. */

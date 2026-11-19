@@ -17,6 +17,10 @@ data class T3Home(val dir: Path) {
     val environmentIdFile: Path
         get() = dir.resolve("userdata").resolve("environment-id")
 
+    /** The directory of the Git worktrees that T3 creates for its threads. */
+    val worktreesDir: Path
+        get() = dir.resolve("worktrees")
+
     companion object {
         const val HOME_ENV = "T3CODE_HOME"
 

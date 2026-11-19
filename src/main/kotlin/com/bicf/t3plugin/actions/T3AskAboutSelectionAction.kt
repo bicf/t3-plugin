@@ -4,7 +4,9 @@ import com.bicf.t3plugin.T3Bundle
 import com.bicf.t3plugin.T3Exception
 import com.bicf.t3plugin.editor.T3PageTabs
 import com.bicf.t3plugin.project.T3ProjectBinder
+import com.bicf.t3plugin.project.T3ProjectWindows
 import com.bicf.t3plugin.project.T3Threads
+import com.bicf.t3plugin.project.T3Worktrees
 import com.bicf.t3plugin.server.T3Cli
 import com.bicf.t3plugin.server.T3Home
 import com.bicf.t3plugin.settings.T3Settings
@@ -68,7 +70,8 @@ class T3AskAboutSelectionAction : DumbAwareAction() {
 
         val scope = project.service<T3ProjectScope>()
         val inTabs = T3Settings.getInstance().openThreadsInEditor
-        val openThreadId = if (inTabs) project.service<T3PageTabs>().lastThreadId() else scope.browserPanel?.currentThreadId()
+        val openThreadId = (if (inTabs) project.service<T3PageTabs>().lastThreadId() else scope.browserPanel?.currentThreadId())
+            ?: service<T3ProjectWindows>().worktreeThread(basePath)
         scope.coroutineScope.launch(Dispatchers.EDT) {
             try {
                 val (threadId, environmentId) = runInterruptible(Dispatchers.IO) {
@@ -78,7 +81,8 @@ class T3AskAboutSelectionAction : DumbAwareAction() {
                         T3Threads.send(cli, openThreadId, message)
                         openThreadId
                     } else {
-                        T3Threads.start(cli, basePath, message)
+                        // The CLI does not know a T3 worktree as a project: the thread starts in the main folder.
+                        T3Threads.start(cli, T3Worktrees.cliFolder(basePath, home), message)
                     }
                     id to T3ProjectBinder.environmentId(home)
                 }

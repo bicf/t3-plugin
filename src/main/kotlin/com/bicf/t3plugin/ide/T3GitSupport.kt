@@ -20,4 +20,10 @@ interface T3GitSupport {
 
     /** Shows the changes of the working tree against [ref], for example `origin/main`. */
     fun diffWithBranch(directory: VirtualFile, ref: String): Boolean
+
+    /**
+     * Reloads the worktrees of the Git repositories of the project, as "Open" in the "Worktrees" tab of the Git tool
+     * window does before it opens a worktree in a new window. Call it before the IDE opens a new worktree.
+     */
+    fun reloadWorktrees()
 }

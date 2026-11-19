@@ -26,6 +26,10 @@ internal class T3GitSupportImpl(private val project: Project) : T3GitSupport {
         return true
     }
 
+    override fun reloadWorktrees() {
+        GitRepositoryManager.getInstance(project).repositories.forEach { it.workingTreeHolder.scheduleReload() }
+    }
+
     private fun repository(directory: VirtualFile): GitRepository? =
         GitRepositoryManager.getInstance(project).getRepositoryForFileQuick(directory)
 

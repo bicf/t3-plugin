@@ -93,7 +93,7 @@ class T3RouteWatchTest {
     @Test
     fun `reports the route with its history index and the title through the report function`() {
         val script = T3RouteWatch.script { "send($it)" }
-        assertTrue(script.contains("var r='${T3RouteWatch.ROUTE_PREFIX}'+n+':'+p;send(r);"))
+        assertTrue(script.contains("var r='${T3RouteWatch.ROUTE_PREFIX}'+n+':'+p+draft(p);send(r);"))
         assertTrue(script.contains("h.__TSR_index"))
         assertTrue(script.contains("var s='${T3RouteWatch.TITLE_PREFIX}'+t;send(s);"))
     }
@@ -112,5 +112,42 @@ class T3RouteWatchTest {
         assertTrue(T3RouteWatch.parseRoute("2:/x")!!.pushed)
         assertTrue(!T3RouteWatch.parseRoute("0:/x")!!.pushed)
         listOf("/draft/d1", ":/x", "-1:/x", "a:/x", "1:x", "1").forEach { assertNull(it, T3RouteWatch.parseRoute(it)) }
+    }
+
+    @Test
+    fun `reads the project and the worktree of a draft route`() {
+        assertEquals(
+            T3RouteWatch.Route(2, "/draft/d1", "p1", "/wt/a"),
+            T3RouteWatch.parseRoute("""2:/draft/d1 {"p":"p1","w":"/wt/a"}"""),
+        )
+        assertEquals(T3RouteWatch.Route(0, "/draft/d1", "p1", null), T3RouteWatch.parseRoute("""0:/draft/d1 {"p":"p1","w":null}"""))
+        assertEquals(T3RouteWatch.Route(0, "/draft/d1"), T3RouteWatch.parseRoute("0:/draft/d1 not-json"))
+        assertEquals(T3RouteWatch.Route(0, "/draft/d1"), T3RouteWatch.parseRoute("""0:/draft/d1 {"p":5}"""))
+        assertTrue(T3RouteWatch.script { "send($it)" }.contains("s.draftThreadsByThreadKey||s.draftThreadsByThreadId"))
+    }
+
+    @Test
+    fun `the thread menu accepts only safe item ids`() {
+        assertTrue(T3ThreadMenu.chooseScript("snooze:1h").contains("'snooze:1h'"))
+        listOf("", "a'b", "a b", "x".repeat(81)).forEach { id ->
+            assertTrue(id, runCatching { T3ThreadMenu.chooseScript(id) }.isFailure)
+        }
+        assertTrue(runCatching { T3ThreadMenu.listScript(0) { it } }.isFailure)
+    }
+
+    @Test
+    fun `the thread menu reads only valid items`() {
+        val (id, items) = T3ThreadMenu.parseReply(
+            """7:[{"id":"pin","label":"Pin thread"},{"id":"bad id","label":"x"},{"label":"no id"},""" +
+                """{"id":"copy","label":"Copy","children":[{"id":"copy-path","label":"Path","children":[{"id":"deep"}]}]},""" +
+                """{"id":"rename","label":"  "}]""",
+        )!!
+        assertEquals(7L, id)
+        assertEquals(listOf("pin", "copy", "rename"), items!!.map { it.id })
+        assertEquals("rename", items[2].label)
+        assertEquals(emptyList<T3ThreadMenu.Item>(), items[1].children[0].children)
+        assertEquals(7L to null, T3ThreadMenu.parseReply("7:null"))
+        assertNull(T3ThreadMenu.parseReply("x:[]"))
+        assertNull(T3ThreadMenu.parseReply("0:[]"))
     }
 }

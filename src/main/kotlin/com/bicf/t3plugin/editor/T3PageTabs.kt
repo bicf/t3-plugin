@@ -1,6 +1,8 @@
 package com.bicf.t3plugin.editor
 
+import com.bicf.t3plugin.project.T3ProjectWindows
 import com.bicf.t3plugin.toolWindow.T3ProjectScope
+import com.intellij.openapi.application.ApplicationManager
 import com.bicf.t3plugin.toolWindow.T3Routes
 import com.bicf.t3plugin.workspace.T3WorkspacePanels
 import com.intellij.openapi.components.Service
@@ -25,6 +27,8 @@ import com.intellij.openapi.vfs.VirtualFile
  *   [com.bicf.t3plugin.toolWindow.T3SidebarMark]). The selection of a file that is not a T3 page keeps the mark.
  * - The "T3 Workspace" tool window follows the tabs: it selects the panel of the selected tab, closes the panel of a
  *   closed tab, and shows the new page of a draft that became a thread.
+ * - A tab that becomes the tab of a thread whose T3 worktree has its own open IDE window closes: that window shows
+ *   the thread (see [T3ProjectWindows]).
  * Call the functions on the EDT.
  */
 @Service(Service.Level.PROJECT)
@@ -88,6 +92,12 @@ class T3PageTabs(private val project: Project) {
             updateTitle(file, T3PageFile.defaultTitle(path))
             project.service<T3WorkspacePanels>().onPathChanged(file)
             if (file == last) updateSidebarMark()
+            // The window of the T3 worktree of this thread shows the thread already: this tab closes.
+            val threadId = file.threadRoute?.threadId
+            if (threadId != null && serviceIfCreated<T3ProjectWindows>()?.inOtherWorktreeWindow(project, threadId) == true) {
+                // The page of the tab reported this path: the tab closes after the page message.
+                ApplicationManager.getApplication().invokeLater({ close(file) }, project.disposed)
+            }
         }
     }
 
