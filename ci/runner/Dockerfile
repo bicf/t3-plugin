@@ -1,6 +1,7 @@
 # Self-hosted GitHub Actions runner for the Build workflow, and image for ci/local.sh.
 # JDK 21 (Zulu, as actions/setup-java in the GitHub-hosted jobs) runs Gradle;
 # the foojay resolver downloads the Java 25 toolchain into the Gradle volume.
+# The volumes on /home/runner/.gradle and /home/runner/.pluginVerifier keep all the downloads between runs.
 
 FROM azul/zulu-openjdk:21.0.13 AS jdk
 
@@ -31,7 +32,8 @@ RUN set -eux; \
     gpasswd -d runner sudo; \
     gpasswd -d runner docker; \
     rm -f /etc/sudoers.d/runner; \
-    mkdir -p /home/runner/.gradle /runner-state; \
+    # The volumes mount on these directories: a new volume copies their owner, the runner user.
+    mkdir -p /home/runner/.gradle /home/runner/.pluginVerifier /home/runner/_work /runner-state; \
     chown -R runner:runner /home/runner /runner-state
 
 COPY --chmod=755 entrypoint.sh /usr/local/bin/t3-ci-entrypoint

@@ -21,10 +21,18 @@ services:
       RUNNER_LABELS: t3-ci
     volumes:
       - gradle:/home/runner/.gradle
+      # The Plugin Verifier downloads the plugins of the verified IDEs from the Marketplace (1.4 GB).
+      - plugin-verifier:/home/runner/.pluginVerifier
+      # The job workspaces, with the Gradle project caches that the Build workflow keeps between jobs.
+      - work:/home/runner/_work
       - runner-state:/runner-state
 
 volumes:
   gradle:
     name: t3-ci-gradle
+  plugin-verifier:
+    name: t3-ci-plugin-verifier
+  work:
+    name: t3-ci-work
   runner-state:
     name: t3-ci-runner-state

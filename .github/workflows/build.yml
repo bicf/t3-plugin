@@ -10,7 +10,8 @@
 # - not set: "ubuntu-latest" (GitHub-hosted);
 # - ["self-hosted","linux","t3-ci"]: the Docker runner of ci/runner (see ci/README.md).
 # The GitHub-hosted runner needs the disk, Java and Gradle setup steps; the t3-ci image has Java,
-# and its Gradle volume keeps the dependencies, the IDEs and the build cache between runs.
+# and its volumes keep the dependencies, the IDEs, the build cache, the Plugin Verifier downloads
+# and the workspace with the Gradle project caches between runs.
 #
 # GitHub Actions reference: https://docs.github.com/actions
 #
@@ -44,9 +45,17 @@ jobs:
           preinstalled-runtimes: false
           large-packages: false
 
-      # Check out the current repository
+      # Check out the current repository. The self-hosted runner keeps its workspace between jobs:
+      # the next step cleans it and keeps the Gradle project caches (configuration cache, IntelliJ Platform files).
       - name: Fetch Sources
         uses: actions/checkout@v7
+        with:
+          clean: ${{ runner.environment == 'github-hosted' }}
+
+      # Delete the untracked and ignored files of the previous job, except the Gradle project caches
+      - name: Clean Workspace
+        if: ${{ runner.environment == 'self-hosted' }}
+        run: git clean -ffdx -e /.gradle/ -e /.intellijPlatform/ -e /.kotlin/
 
       # Set up the Java environment for the next steps
       - name: Setup Java
@@ -103,9 +112,17 @@ jobs:
       contents: write
     steps:
 
-      # Check out the current repository
+      # Check out the current repository. The self-hosted runner keeps its workspace between jobs:
+      # the next step cleans it and keeps the Gradle project caches (configuration cache, IntelliJ Platform files).
       - name: Fetch Sources
         uses: actions/checkout@v7
+        with:
+          clean: ${{ runner.environment == 'github-hosted' }}
+
+      # Delete the untracked and ignored files of the previous job, except the Gradle project caches
+      - name: Clean Workspace
+        if: ${{ runner.environment == 'self-hosted' }}
+        run: git clean -ffdx -e /.gradle/ -e /.intellijPlatform/ -e /.kotlin/
 
       # Set up the Java environment for the next steps
       - name: Setup Java
