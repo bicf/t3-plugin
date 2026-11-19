@@ -1,5 +1,6 @@
 package com.bicf.t3plugin.project
 
+import com.bicf.t3plugin.editor.T3PageFile
 import com.bicf.t3plugin.editor.T3PageTabs
 import com.bicf.t3plugin.ide.T3GitSupport
 import com.bicf.t3plugin.settings.T3Settings
@@ -13,16 +14,23 @@ import com.intellij.openapi.components.service
 import com.intellij.openapi.components.serviceIfCreated
 import com.intellij.openapi.components.serviceOrNull
 import com.intellij.openapi.diagnostic.logger
+import com.intellij.openapi.fileEditor.FileEditorManager
+import com.intellij.openapi.fileEditor.FileEditorManagerListener
+import com.intellij.openapi.fileEditor.OpenFileDescriptor
 import com.intellij.openapi.progress.ProcessCanceledException
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.project.ProjectManager
 import com.intellij.openapi.startup.ProjectActivity
+import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.util.io.FileUtil
+import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.openapi.wm.ToolWindowManager
+import com.intellij.util.concurrency.AppExecutorUtil
 import java.nio.file.Files
 import java.nio.file.InvalidPathException
 import java.nio.file.Path
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.TimeUnit
 
 /**
  * Links the T3 projects to the IDE windows: one IDE window per T3 project, and one per T3 worktree of a new thread.
@@ -41,6 +49,9 @@ import java.util.concurrent.ConcurrentHashMap
  *   as "Open" in the "Worktrees" tab of the Git tool window), and the thread opens there in an editor tab. The tab of the
  *   same thread closes in the other IDE windows, also a draft tab that becomes the tab of this thread later.
  * - The plugin opens the editor tab of a new window when the window is ready (see [Startup]).
+ * - The IDE opens `README.md` in a new window without open files (Advanced Settings, "ide.open.readme.md.on.startup").
+ *   When the IDE opens a `README.md` in the [README_WAIT_S] seconds after the T3 tab of a new window, the T3 tab
+ *   becomes the selected tab again. The `README.md` tab stays open.
  * Call the functions on the EDT, except [onProjectOpened].
  */
 @Service(Service.Level.APP)
@@ -169,12 +180,31 @@ class T3ProjectWindows {
             if (project.isDisposed) return@invokeLater
             if (showToolWindow) manager.getToolWindow(T3ToolWindowFactory.ID)?.show()
             val file = page?.let { project.service<T3PageTabs>().open(it) } ?: return@invokeLater
+            if (showToolWindow) keepSelectedAfterReadme(project, file)
             if (!closeElsewhere) return@invokeLater
             val key = file.page.key
             ProjectManager.getInstance().openProjects.filter { it !== project && !it.isDisposed }.forEach { other ->
                 other.serviceIfCreated<T3PageTabs>()?.let { tabs -> tabs.find(key)?.let(tabs::close) }
             }
         }
+    }
+
+    /** Selects the T3 tab [tab] again when the IDE opens a `README.md` in [project] in the next [README_WAIT_S] s. */
+    private fun keepSelectedAfterReadme(project: Project, tab: T3PageFile) {
+        val watch = Disposer.newDisposable("T3 tab after README.md")
+        AppExecutorUtil.getAppScheduledExecutorService().schedule({ Disposer.dispose(watch) }, README_WAIT_S, TimeUnit.SECONDS)
+        project.messageBus.connect(watch).subscribe(
+            FileEditorManagerListener.FILE_EDITOR_MANAGER,
+            object : FileEditorManagerListener {
+                override fun fileOpened(source: FileEditorManager, file: VirtualFile) {
+                    if (!file.name.equals(README, ignoreCase = true)) return
+                    Disposer.dispose(watch)
+                    ApplicationManager.getApplication().invokeLater({
+                        if (FileEditorManager.getInstance(project).isFileOpen(tab)) OpenFileDescriptor(project, tab).navigate(true)
+                    }, project.disposed)
+                }
+            },
+        )
     }
 
     private fun openProject(path: String): Project? = ProjectManager.getInstance().openProjects.firstOrNull { project ->
@@ -198,6 +228,8 @@ class T3ProjectWindows {
 
     companion object {
         private val LOG = logger<T3ProjectWindows>()
+        private const val README = "README.md"
+        private const val README_WAIT_S = 20L
 
         /** True when the sidebar must report its projects and threads: a local server and one of the 2 settings. */
         fun watchEnabled(remote: Boolean): Boolean {
