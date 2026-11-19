@@ -11,6 +11,7 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import java.io.IOException
 import java.nio.file.Files
+import java.nio.file.Path
 import java.time.Duration
 
 /**
@@ -28,8 +29,13 @@ object T3ProjectBinder {
      */
     data class Binding(val path: String, val environmentId: String?, val threadId: String? = null)
 
-    /** Blocks for up to 2 CLI calls. Throws [T3Exception] only when `t3 project add` fails. */
+    /**
+     * Blocks for up to 2 CLI calls. Throws [T3Exception] only when `t3 project add` fails.
+     * A T3 worktree (see [T3Worktrees]) adds no project and opens no thread: its window opens the thread of the worktree.
+     */
     fun bind(cli: T3Cli, projectPath: String, timeout: Duration = Duration.ofSeconds(60)): Binding {
+        val mainFolder = runCatching { T3Worktrees.mainFolder(Path.of(projectPath), cli.home) }.getOrNull()
+        if (mainFolder != null) return Binding("/", environmentId(cli.home))
         val add = cli.run(timeout, "project", "add", projectPath)
         if (!isAddedOrExisting(add)) {
             throw T3Exception(

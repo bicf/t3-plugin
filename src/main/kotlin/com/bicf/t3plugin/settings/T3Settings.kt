@@ -29,6 +29,12 @@ class T3Settings : SimplePersistentStateComponent<T3Settings.State>(State()) {
 
         /** Use the IDE editor, diff viewer, terminal and Git instead of the T3 panels, when the IDE has them. */
         var useIdeTools by property(true)
+
+        /** Open each new T3 project, and each thread of another project, in the IDE window of its folder. */
+        var openProjectsInWindows by property(true)
+
+        /** Open the T3 worktree of a new thread in a new IDE window. */
+        var openWorktreesInWindows by property(true)
     }
 
     /** The configured `t3` command, or null when the plugin searches for it. */
@@ -47,6 +53,12 @@ class T3Settings : SimplePersistentStateComponent<T3Settings.State>(State()) {
 
     val useIdeTools: Boolean
         get() = state.useIdeTools
+
+    val openProjectsInWindows: Boolean
+        get() = state.openProjectsInWindows
+
+    val openWorktreesInWindows: Boolean
+        get() = state.openWorktreesInWindows
 
     companion object {
         fun getInstance(): T3Settings = service()

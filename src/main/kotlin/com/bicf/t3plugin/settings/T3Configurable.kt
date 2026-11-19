@@ -53,6 +53,16 @@ class T3Configurable : BoundConfigurable(T3Bundle["settings.displayName"]) {
                 .bindSelected({ state.useIdeTools }, { state.useIdeTools = it })
                 .comment(T3Bundle["settings.useIdeTools.comment"])
         }
+        row {
+            checkBox(T3Bundle["settings.openProjectsInWindows"])
+                .bindSelected({ state.openProjectsInWindows }, { state.openProjectsInWindows = it })
+                .comment(T3Bundle["settings.openProjectsInWindows.comment"])
+        }
+        row {
+            checkBox(T3Bundle["settings.openWorktreesInWindows"])
+                .bindSelected({ state.openWorktreesInWindows }, { state.openWorktreesInWindows = it })
+                .comment(T3Bundle["settings.openWorktreesInWindows.comment"])
+        }
     }
 
     override fun apply() {
