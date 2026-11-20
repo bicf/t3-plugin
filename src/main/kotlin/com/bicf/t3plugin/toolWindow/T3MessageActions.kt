@@ -30,7 +30,7 @@ package com.bicf.t3plugin.toolWindow
  * In T3 0.1.9, each code block has a `data-language` attribute and a "Copy code" button ("Copied" for 1.2 s after a
  * click) in its header; a Mermaid diagram has the button in a row above the diagram (verified in the web bundle).
  * - The button goes at the end of the group of T3 that holds "Copy code", with the classes of that button.
- * - Its icon (an arrow down to a line) is not the icon of the button of the messages: the 2 buttons do different things.
+ * - It has the icon of the "Edit in composer" button of the messages of the user.
  * - The text is the text that "Copy code" copies: the `code` prop of the React component of the block. The search
  *   starts at the button group and stops at the first DOM element out of the block. Without the prop, the text is
  *   the text of the `pre` element of the block. The line breaks at the end of the text are removed.
@@ -57,7 +57,7 @@ internal object T3MessageActions {
         var SVG='<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">';
         var ICON={wrap:'<line x1="3" x2="21" y1="6" y2="6"/><path d="M3 12h15a3 3 0 1 1 0 6h-4"/><polyline points="16 16 14 18 16 20"/><line x1="3" x2="10" y1="18" y2="18"/></svg>',
           edit:'<path d="M5 4h1a3 3 0 0 1 3 3 3 3 0 0 1 3-3h1"/><path d="M13 20h-1a3 3 0 0 1-3-3 3 3 0 0 1-3 3H5"/><path d="M5 16H4a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h1"/><path d="M13 8h7a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-7"/><path d="M9 7v10"/></svg>'};
-        ICON.code='<path d="M12 17V3"/><path d="m6 11 6 6 6-6"/><path d="M19 21H5"/></svg>';
+        ICON.code=ICON.edit;
         function label(b,l){b.setAttribute('aria-label',l);b.title=l;}
         function button(t3,kind,l){var b=document.createElement('button');b.type='button';b.className=t3.className;
           b.setAttribute('data-t3plugin-button',kind);label(b,l);
