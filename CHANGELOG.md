@@ -4,6 +4,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- Each code block in a conversation (a block between ```` ``` ```` fences, also a Mermaid diagram) has an "Edit in composer" button, after "Copy code". The button puts the text of the block in the composer, after the draft; it sends nothing.
+
 ## [0.3.0] - 2026-11-19
 
 ### Added

@@ -83,7 +83,8 @@ import javax.swing.JPanel
  * - Copy and paste in the page use the IDE clipboard through the plugin (see [T3ClipboardBridge]). On Linux, the
  *   selection and the middle-click paste use the primary selection of the IDE.
  * - The hover styles of T3 work with the mouse, although the browser reports no hover device (see [T3PointerMedia]).
- * - The action row of each message of the user gets "Wrap lines" and "Edit in composer" buttons (see [T3MessageActions]).
+ * - The action row of each message of the user gets "Wrap lines" and "Edit in composer" buttons, and each code block
+ *   gets an "Edit in composer" button (see [T3MessageActions]).
  * - Editor tab: the page sends the "thread visited" command only while the tab is on screen (see [T3VisitGate]).
  *   A thread that completes in a tab in the background keeps its unread state.
  * - "T3 Workspace": the page never sends the "thread visited" command; the tab of the same thread sends it.

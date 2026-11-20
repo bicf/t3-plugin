@@ -135,6 +135,24 @@ class T3ClipboardBridgeTest {
     }
 
     @Test
+    fun `code blocks get an edit button next to the T3 copy code button`() {
+        val script = T3MessageActions.script()
+        assertTrue(script.contains("document.querySelectorAll('${T3MessageActions.COPY_CODE_SELECTOR}').forEach(attachCode);"))
+        assertTrue(script.contains("if(!group||!t3.closest('[data-language]'))return;"))
+        assertTrue(script.contains("c=button(t3,'code','Edit in composer');"))
+        assertTrue(script.contains("if(group.lastElementChild!==c)group.appendChild(c);"))
+    }
+
+    @Test
+    fun `code block edit reads the code prop only inside the block`() {
+        val script = T3MessageActions.script()
+        assertTrue(script.contains("if(typeof f.type==='string'&&!block.contains(f.stateNode))break;"))
+        assertTrue(script.contains("typeof p.code==='string'"))
+        assertTrue(script.contains("var pre=block.querySelector('pre');"))
+        assertTrue(script.contains("insert(codeText(c).replace(/[\\r\\n]+$/,''));"))
+    }
+
+    @Test
     fun `edit reads the text prop only inside the copy button component`() {
         val script = T3MessageActions.script()
         assertTrue(script.contains("if(typeof f.type==='string'&&f.stateNode!==el)return null;"))
