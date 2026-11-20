@@ -140,6 +140,7 @@ class T3ClipboardBridgeTest {
         assertTrue(script.contains("document.querySelectorAll('${T3MessageActions.COPY_CODE_SELECTOR}').forEach(attachCode);"))
         assertTrue(script.contains("if(!group||!t3.closest('[data-language]'))return;"))
         assertTrue(script.contains("c=button(t3,'code','Edit in composer');"))
+        assertTrue(script.contains("ICON.code='<path d=\"M12 17V3\"/>"))
         assertTrue(script.contains("if(group.lastElementChild!==c)group.appendChild(c);"))
     }
 
