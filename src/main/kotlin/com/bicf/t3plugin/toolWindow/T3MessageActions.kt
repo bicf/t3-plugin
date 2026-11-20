@@ -1,7 +1,8 @@
 package com.bicf.t3plugin.toolWindow
 
 /**
- * Adds a line wrap button and an "Edit in composer" button to the action row of each message of the user.
+ * Adds a line wrap button and an "Edit in composer" button to the action row of each message of the user, and an
+ * "Edit in composer" button to each code block.
  *
  * T3 0.1.9 marks a message row with `data-message-role="user"` and the text with `data-user-message-body`.
  * Under the box, T3 has an action row: time, "Edit from here" (only for a turn with a checkpoint), "Copy message" and
@@ -24,6 +25,16 @@ package com.bicf.t3plugin.toolWindow
  *   script types the text with `insertText`. The plugin sends nothing.
  *   T3 "Edit from here" is different: it reverts the conversation to that turn.
  * - A message without text (only attachments) has no "Copy message" button of T3, so it gets no buttons.
+ *
+ * Code blocks (a fenced block of a message, also a Mermaid diagram) get an "Edit in composer" button too.
+ * In T3 0.1.9, each code block has a `data-language` attribute and a "Copy code" button ("Copied" for 1.2 s after a
+ * click) in its header; a Mermaid diagram has the button in a row above the diagram (verified in the web bundle).
+ * - The button goes at the end of the group of T3 that holds "Copy code", with the classes of that button.
+ * - Its icon (an arrow down to a line) is not the icon of the button of the messages: the 2 buttons do different things.
+ * - The text is the text that "Copy code" copies: the `code` prop of the React component of the block. The search
+ *   starts at the button group and stops at the first DOM element out of the block. Without the prop, the text is
+ *   the text of the `pre` element of the block. The line breaks at the end of the text are removed.
+ * - The text goes into the composer as for a message: after the draft, with hard breaks. The plugin sends nothing.
  */
 internal object T3MessageActions {
 
@@ -31,6 +42,10 @@ internal object T3MessageActions {
 
     /** The T3 composer: a TipTap editor; its element has the editor in the `editor` property. */
     const val COMPOSER_SELECTOR = "[data-composer-rich-text=\"true\"]"
+
+    /** The "Copy code" button of a T3 code block, also in its "Copied" state. */
+    const val COPY_CODE_SELECTOR =
+        "button[aria-label=\"Copy code\"]:not([data-t3plugin-button]),button[aria-label=\"Copied\"]:not([data-t3plugin-button])"
 
     fun script(): String = """
         (function(){if(window.__t3MessageActions)return;window.__t3MessageActions=true;
@@ -42,6 +57,7 @@ internal object T3MessageActions {
         var SVG='<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">';
         var ICON={wrap:'<line x1="3" x2="21" y1="6" y2="6"/><path d="M3 12h15a3 3 0 1 1 0 6h-4"/><polyline points="16 16 14 18 16 20"/><line x1="3" x2="10" y1="18" y2="18"/></svg>',
           edit:'<path d="M5 4h1a3 3 0 0 1 3 3 3 3 0 0 1 3-3h1"/><path d="M13 20h-1a3 3 0 0 1-3-3 3 3 0 0 1-3 3H5"/><path d="M5 16H4a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h1"/><path d="M13 8h7a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-7"/><path d="M9 7v10"/></svg>'};
+        ICON.code='<path d="M12 17V3"/><path d="m6 11 6 6 6-6"/><path d="M19 21H5"/></svg>';
         function label(b,l){b.setAttribute('aria-label',l);b.title=l;}
         function button(t3,kind,l){var b=document.createElement('button');b.type='button';b.className=t3.className;
           b.setAttribute('data-t3plugin-button',kind);label(b,l);
@@ -61,7 +77,13 @@ internal object T3MessageActions {
           var body=row.querySelector('[data-user-message-body]');return body?body.innerText:'';}
         function inline(text){var out=[];text.replace(/\r\n?/g,'\n').split('\n').forEach(function(l,i){
           if(i)out.push({type:'hardBreak'});if(l)out.push({type:'text',text:l});});return out;}
-        function edit(b){var row=rowOf(b);if(!row)return;var text=messageText(row);if(!text||!text.trim())return;
+        function edit(b){var row=rowOf(b);if(row)insert(messageText(row));}
+        function codeText(c){var block=c.closest('[data-language]'),el=c.parentElement;if(!block||!el)return '';
+          try{for(var k in el){if(k.indexOf('__reactFiber${'$'}')!==0)continue;
+            for(var f=el[k],i=0;f&&i<30;f=f.return,i++){if(typeof f.type==='string'&&!block.contains(f.stateNode))break;
+              var p=f.memoizedProps;if(p&&typeof p.code==='string'&&p.code.trim())return p.code;}}}catch(x){}
+          var pre=block.querySelector('pre');return pre?pre.textContent:'';}
+        function insert(text){if(!text||!text.trim())return;
           var el=document.querySelector('$COMPOSER_SELECTOR');if(!el)return;var ed=el.editor;
           if(ed&&ed.chain&&!ed.isDestroyed){var nodes=inline(text);
             if(!ed.isEmpty)nodes=[{type:'hardBreak'},{type:'hardBreak'}].concat(nodes);
@@ -80,8 +102,14 @@ internal object T3MessageActions {
               e.addEventListener('click',function(ev){ev.stopPropagation();edit(e);});}
             if(group.lastElementChild!==e||e.previousElementSibling!==w){group.appendChild(w);group.appendChild(e);}});
           if(added)wrapState(row);}
+        function attachCode(t3){var group=t3.parentElement;if(!group||!t3.closest('[data-language]'))return;
+          var c=group.querySelector(':scope>[data-t3plugin-button="code"]');
+          if(!c){c=button(t3,'code','Edit in composer');
+            c.addEventListener('click',function(ev){ev.stopPropagation();insert(codeText(c).replace(/[\r\n]+${'$'}/,''));});}
+          if(group.lastElementChild!==c)group.appendChild(c);}
         var queued=false;
-        function scan(){queued=false;addStyle();document.querySelectorAll('[data-message-role="user"]').forEach(attach);}
+        function scan(){queued=false;addStyle();document.querySelectorAll('[data-message-role="user"]').forEach(attach);
+          document.querySelectorAll('$COPY_CODE_SELECTOR').forEach(attachCode);}
         function queue(){if(!queued){queued=true;requestAnimationFrame(scan);}}
         new MutationObserver(queue).observe(document.body,{childList:true,subtree:true});scan();
         })();
