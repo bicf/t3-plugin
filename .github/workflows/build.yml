@@ -9,6 +9,8 @@
 # The repository variable CI_RUNS_ON selects the runner, as a JSON value for 'runs-on':
 # - not set: "ubuntu-latest" (GitHub-hosted);
 # - ["self-hosted","linux","t3-ci"]: the Docker runner of ci/runner (see ci/README.md).
+# A pull request from a fork always uses "ubuntu-latest", whatever the value of CI_RUNS_ON.
+# The 'releaseDraft' job never runs on pull requests, so it uses CI_RUNS_ON without this rule.
 # The GitHub-hosted runner needs the disk, Java and Gradle setup steps; the t3-ci image has Java,
 # and its volumes keep the dependencies, the IDEs, the build cache, the Plugin Verifier downloads
 # and the workspace with the Gradle project caches between runs.
@@ -34,7 +36,8 @@ jobs:
   # Build the plugin, run the tests and the plugin verification in one Gradle invocation
   build:
     name: Build, test and verify
-    runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+    # A pull request from a fork always runs on "ubuntu-latest": its code never runs on the self-hosted runner.
+    runs-on: ${{ fromJSON((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository) && '"ubuntu-latest"' || vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     steps:
 
       # Free GitHub Actions Environment Disk Space (GitHub-hosted only: it deletes system directories)

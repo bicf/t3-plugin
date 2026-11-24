@@ -7,6 +7,7 @@ The Build workflow (`.github/workflows/build.yml`) runs on the runner that the r
 | not set | `ubuntu-latest` (GitHub-hosted) |
 | `["self-hosted","linux","t3-ci"]` | the Docker runner `t3-ci` of this directory |
 
+A pull request from a fork always runs on `ubuntu-latest`: its code never runs on the self-hosted runner.
 The Release workflow (`release.yml`) stays on `ubuntu-latest`.
 
 ## Runner `t3-ci`
