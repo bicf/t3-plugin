@@ -12,6 +12,9 @@
             <li>The menu of a conversation tab has the thread actions of T3: rename, pin, settle, snooze, archive, delete, copy.</li>
             <li>With a local server, one IDE window per T3 project: a new T3 project opens in a new IDE window, and the
                 worktree of a new thread opens in a new IDE window as a Git worktree.</li>
+            <li>The IDE and T3 use one folder for a Git worktree: a worktree that the IDE creates is not a separate T3 project,
+                "Create worktree" of the IDE proposes the T3 worktrees folder, and "New T3 Thread in This Worktree" starts a
+                thread in the worktree of the window.</li>
             <li>Diffs of T3 open in the IDE editor.</li>
             <li>With a local server, file links open in the IDE editor, and the T3 terminal and Git actions use the IDE terminal and Git, when these plugins are installed.</li>
             <li>With a local server, "Ask T3 About Selection" in the editor context menu sends the selected code to T3.</li>
@@ -63,6 +66,12 @@
         <action id="com.bicf.t3plugin.AskAboutSelection"
                 class="com.bicf.t3plugin.actions.T3AskAboutSelectionAction">
             <add-to-group group-id="EditorPopupMenu" anchor="last"/>
+        </action>
+        <!-- In the IDE window of a Git worktree: a new T3 thread in the folder of the worktree. -->
+        <action id="com.bicf.t3plugin.NewWorktreeThread"
+                class="com.bicf.t3plugin.actions.T3NewWorktreeThreadAction"
+                icon="AllIcons.General.Add">
+            <add-to-group group-id="ToolsMenu" anchor="last"/>
         </action>
         <!-- The items of the "Thread actions" menu of T3, at the top of the menu of a T3 thread tab. -->
         <group id="com.bicf.t3plugin.ThreadActions"

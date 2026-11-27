@@ -81,8 +81,8 @@ class T3AskAboutSelectionAction : DumbAwareAction() {
                         T3Threads.send(cli, openThreadId, message)
                         openThreadId
                     } else {
-                        // The CLI does not know a T3 worktree as a project: the thread starts in the main folder.
-                        T3Threads.start(cli, T3Worktrees.cliFolder(basePath, home), message)
+                        // The CLI does not know a worktree outside the T3 projects: the thread starts in the main folder.
+                        T3Threads.start(cli, T3Worktrees.cliFolder(cli, basePath), message)
                     }
                     id to T3ProjectBinder.environmentId(home)
                 }

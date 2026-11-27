@@ -4,6 +4,7 @@ import com.bicf.t3plugin.server.FakeCli
 import com.bicf.t3plugin.server.T3Home
 import com.intellij.openapi.util.SystemInfo
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeFalse
@@ -96,38 +97,75 @@ class T3ShellModelAndWorktreesTest {
     }
 
     @Test
-    fun `reads the main folder of a T3 worktree`() {
+    fun `reads the main folder of a worktree`() {
         assertEquals(Path.of("/work/demo"), T3Worktrees.mainFolderOf("gitdir: /work/demo/.git/worktrees/t3-1a2b\n"))
+        assertEquals(
+            Path.of("/work/demo"),
+            T3Worktrees.mainFolderOf("gitdir: ../demo/.git/worktrees/feature\n", Path.of("/work/demo-feature")),
+        )
+        assertNull(T3Worktrees.mainFolderOf("gitdir: ../demo/.git/worktrees/feature\n"))
         assertNull(T3Worktrees.mainFolderOf("gitdir: /work/demo/.git"))
         assertNull(T3Worktrees.mainFolderOf("gitdir: /work/demo/.git/modules/sub"))
+        assertNull(T3Worktrees.mainFolderOf("gitdir: /work/demo.git/worktrees/bare"))
         assertNull(T3Worktrees.mainFolderOf("ref: refs/heads/main"))
     }
 
-    @Test
-    fun `a folder is a T3 worktree only under the T3 home`() {
-        val home = T3Home(tmp.root.toPath().resolve("home"))
-        fun worktree(folder: Path): Path = folder.also {
-            Files.createDirectories(it)
-            Files.writeString(it.resolve(".git"), "gitdir: /work/demo/.git/worktrees/${it.fileName}\n")
-        }
-        val inside = worktree(home.worktreesDir.resolve("demo").resolve("t3-1a2b"))
-        val outside = worktree(tmp.root.toPath().resolve("elsewhere"))
-        assertEquals(Path.of("/work/demo"), T3Worktrees.mainFolder(inside, home))
-        assertNull(T3Worktrees.mainFolder(outside, home))
-        assertNull(T3Worktrees.mainFolder(home.worktreesDir.resolve("missing"), home))
-        assertEquals("/work/demo", T3Worktrees.cliFolder(inside.toString(), home))
-        assertEquals(outside.toString(), T3Worktrees.cliFolder(outside.toString(), home))
+    private fun worktree(folder: Path): Path = folder.also {
+        Files.createDirectories(it)
+        Files.writeString(it.resolve(".git"), "gitdir: /work/demo/.git/worktrees/${it.fileName}\n")
     }
 
     @Test
-    fun `the binding of a T3 worktree adds no project and opens no thread`() {
+    fun `a worktree is a worktree in any folder`() {
+        val home = T3Home(tmp.root.toPath().resolve("home"))
+        val t3 = worktree(home.worktreesDir.resolve("demo").resolve("t3-1a2b"))
+        val ide = worktree(tmp.root.toPath().resolve("demo-feature"))
+        val main = tmp.root.toPath().resolve("main").also { Files.createDirectories(it.resolve(".git")) }
+        assertEquals(Path.of("/work/demo"), T3Worktrees.mainFolder(t3))
+        assertEquals(Path.of("/work/demo"), T3Worktrees.mainFolder(ide))
+        assertEquals(Path.of("/work/demo"), T3Worktrees.mainFolder(ide.toString()))
+        assertNull(T3Worktrees.mainFolder(main))
+        assertNull(T3Worktrees.mainFolder(tmp.root.toPath().resolve("missing")))
+        assertNull(T3Worktrees.mainFolder(""))
+        assertNull(T3Worktrees.mainFolder(null as String?))
+    }
+
+    @Test
+    fun `the CLI folder of a worktree is the main folder, unless a T3 project contains the worktree`() {
+        assumeFalse("The fake CLI is a POSIX shell script.", SystemInfo.isWindows)
+        val project = worktree(tmp.root.toPath().resolve("own-project"))
+        val other = worktree(tmp.root.toPath().resolve("demo-feature"))
+        val plain = tmp.root.toPath().resolve("plain").also { Files.createDirectories(it) }
+        val calls = tmp.root.toPath().resolve("calls.txt")
+        val cli = FakeCli.create(
+            tmp.root.toPath(),
+            "echo \"${'$'}*\" >> '$calls'; [ \"${'$'}4\" = '$project' ] && { printf '[]'; exit 0; }; exit 1",
+        )
+        assertEquals(project.toString(), T3Worktrees.cliFolder(cli, project.toString()))
+        assertEquals("/work/demo", T3Worktrees.cliFolder(cli, other.toString()))
+        assertEquals(plain.toString(), T3Worktrees.cliFolder(cli, plain.toString()))
+        assertEquals(2, Files.readAllLines(calls).size)
+    }
+
+    @Test
+    fun `the binding of a worktree in any folder adds no project and opens no thread`() {
         assumeFalse("The fake CLI is a POSIX shell script.", SystemInfo.isWindows)
         val calls = tmp.root.toPath().resolve("calls.txt")
         val cli = FakeCli.create(tmp.root.toPath(), "echo \"${'$'}*\" >> '$calls'; printf '[{\"threadId\":\"newest\"}]'")
-        val folder = cli.home.worktreesDir.resolve("demo").resolve("t3-1a2b")
-        Files.createDirectories(folder)
-        Files.writeString(folder.resolve(".git"), "gitdir: /work/demo/.git/worktrees/t3-1a2b\n")
-        assertEquals(T3ProjectBinder.Binding("/", null), T3ProjectBinder.bind(cli, folder.toString()))
+        for (folder in listOf(cli.home.worktreesDir.resolve("demo").resolve("t3-1a2b"), tmp.root.toPath().resolve("demo-feature"))) {
+            worktree(folder)
+            assertEquals(T3ProjectBinder.Binding("/", null), T3ProjectBinder.bind(cli, folder.toString()))
+        }
         assertTrue(Files.notExists(calls))
+    }
+
+    @Test
+    fun `2 paths of one folder are the same folder`() {
+        assumeFalse("Symlinks need a POSIX file system.", SystemInfo.isWindows)
+        val real = tmp.root.toPath().resolve("real").also { Files.createDirectories(it) }
+        val link = Files.createSymbolicLink(tmp.root.toPath().resolve("link"), real)
+        assertTrue(T3ProjectWindows.sameFolder(real.toString(), link.toString()))
+        assertTrue(T3ProjectWindows.sameFolder("/work/missing", "/work/missing"))
+        assertFalse(T3ProjectWindows.sameFolder(real.toString(), tmp.root.toPath().resolve("other").toString()))
     }
 }

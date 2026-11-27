@@ -9,6 +9,8 @@ File links, "Open in…", diffs, the terminal, the file panel and Git use the ID
 The menu of a conversation tab has the thread actions of T3 (rename, pin, settle, snooze, archive, delete, copy).
 With a local server, each T3 project has its IDE window: a new T3 project opens in a new IDE window, a thread of another project opens in the window of that project,
 and the worktree of a new thread opens in a new IDE window.
+The IDE and T3 use one folder for a Git worktree: a worktree that the IDE creates is not a separate T3 project, the IDE dialog "Create worktree" proposes the T3 worktrees folder,
+and "New T3 Thread in This Worktree" (Tools menu) starts a thread in the worktree of the window.
 This plugin is not affiliated with or endorsed by the T3 Code project.
 
 - Plan: [`PLAN.md`](PLAN.md)

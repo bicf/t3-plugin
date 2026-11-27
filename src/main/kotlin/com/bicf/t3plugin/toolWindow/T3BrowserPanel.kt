@@ -4,6 +4,7 @@ import com.bicf.t3plugin.T3Bundle
 import com.bicf.t3plugin.T3Exception
 import com.bicf.t3plugin.editor.T3PageFile
 import com.bicf.t3plugin.editor.T3PageTabs
+import com.bicf.t3plugin.ide.T3GitSupport
 import com.bicf.t3plugin.ide.T3IdeBridge
 import com.bicf.t3plugin.ide.T3IdeRequest
 import com.bicf.t3plugin.ide.T3IdeTools
@@ -11,6 +12,7 @@ import com.bicf.t3plugin.pairing.PairingLink
 import com.bicf.t3plugin.pairing.T3PairingService
 import com.bicf.t3plugin.project.T3ProjectBinder
 import com.bicf.t3plugin.project.T3ProjectWindows
+import com.bicf.t3plugin.project.T3Worktrees
 import com.bicf.t3plugin.server.T3Cli
 import com.bicf.t3plugin.server.T3Home
 import com.bicf.t3plugin.server.T3ServerService
@@ -25,6 +27,7 @@ import com.intellij.openapi.application.EDT
 import com.intellij.openapi.application.ModalityState
 import com.intellij.openapi.components.service
 import com.intellij.openapi.components.serviceIfCreated
+import com.intellij.openapi.components.serviceOrNull
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.editor.colors.EditorColorsListener
 import com.intellij.openapi.editor.colors.EditorColorsManager
@@ -56,6 +59,7 @@ import java.awt.datatransfer.StringSelection
 import java.awt.event.HierarchyEvent
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
+import java.nio.file.Path
 import javax.swing.JComponent
 import javax.swing.JPanel
 
@@ -92,6 +96,9 @@ import javax.swing.JPanel
  * - Tool window, local server: the sidebar reports its projects and threads (see [T3ShellWatch]). A new T3 project and
  *   the worktree of a new thread open in new IDE windows, and a thread or a draft of another project opens in the IDE
  *   window of its folder (see [T3ProjectWindows]).
+ * - Tool window, local server, a project that is not a worktree: the IDE dialog "Create worktree" proposes the T3
+ *   worktrees folder of the project, `<worktrees directory>/<project folder name>`, when the project has no folder of
+ *   its own (see [T3GitSupport.proposeWorktreeFolder]). The worktrees of the IDE and of T3 are then in one folder.
  * - Editor tab of a thread: the menu of the tab shows the "Thread actions" menu of T3 (see [T3ThreadMenu]). The page
  *   answers on a CEF thread, without the EDT, because a background thread of the menu waits for the answer.
  * - Without editor tabs, in a narrow tool window, the left sidebar of the page gets a drag handle (see [T3SidebarResize]).
@@ -390,11 +397,19 @@ internal class T3BrowserPanel(
         val home = T3Home.detect()
         if (basePath == null) return T3ProjectBinder.Binding("/", T3ProjectBinder.environmentId(home))
         return try {
-            T3ProjectBinder.bind(T3Cli.require(home), basePath)
+            T3ProjectBinder.bind(T3Cli.require(home), basePath).also { proposeWorktreeFolder(home, basePath) }
         } catch (e: T3Exception) {
             LOG.warn("T3 project binding failed: ${e.message}")
             T3ProjectBinder.Binding("/", T3ProjectBinder.environmentId(home))
         }
+    }
+
+    /** The T3 worktrees folder of the project for the IDE dialog "Create worktree". Runs on a background thread. */
+    private fun proposeWorktreeFolder(home: T3Home, basePath: String) {
+        if (T3Worktrees.mainFolder(basePath) != null) return
+        val name = runCatching { Path.of(basePath).fileName?.toString() }.getOrNull() ?: return
+        val git = project.serviceOrNull<T3GitSupport>() ?: return
+        if (git.proposeWorktreeFolder(home.worktreesDir.resolve(name))) LOG.info("Proposed the T3 worktrees folder of $name to the IDE")
     }
 
     private fun askForPairingLink(serverOrigin: String) {

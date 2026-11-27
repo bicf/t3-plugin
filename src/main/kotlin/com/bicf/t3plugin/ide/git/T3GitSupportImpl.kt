@@ -1,6 +1,7 @@
 package com.bicf.t3plugin.ide.git
 
 import com.bicf.t3plugin.ide.T3GitSupport
+import com.intellij.ide.util.PropertiesComponent
 import com.intellij.openapi.actionSystem.ActionManager
 import com.intellij.openapi.actionSystem.ActionPlaces
 import com.intellij.openapi.project.Project
@@ -9,6 +10,7 @@ import com.intellij.openapi.wm.WindowManager
 import git4idea.branch.GitBrancher
 import git4idea.repo.GitRepository
 import git4idea.repo.GitRepositoryManager
+import java.nio.file.Path
 import javax.swing.JComponent
 
 /** [T3GitSupport] with the Git plugin of the IDE. Registered in `t3-git.xml`. */
@@ -28,6 +30,13 @@ internal class T3GitSupportImpl(private val project: Project) : T3GitSupport {
 
     override fun reloadWorktrees() {
         GitRepositoryManager.getInstance(project).repositories.forEach { it.workingTreeHolder.scheduleReload() }
+    }
+
+    override fun proposeWorktreeFolder(folder: Path): Boolean {
+        val properties = PropertiesComponent.getInstance(project)
+        if (!properties.getValue(LAST_PARENT_PATH_KEY).isNullOrBlank()) return false
+        properties.setValue(LAST_PARENT_PATH_KEY, folder.toString())
+        return true
     }
 
     private fun repository(directory: VirtualFile): GitRepository? =
@@ -50,5 +59,12 @@ internal class T3GitSupportImpl(private val project: Project) : T3GitSupport {
 
         /** "Branches…" of the Git plugin. */
         const val BRANCHES_ACTION = "Git.Branches"
+
+        /**
+         * The folder of the last worktree that "Create worktree" created in the project; the dialog proposes it for the
+         * next worktree (`GitCreateWorkingTreeService.LAST_PARENT_PATH_KEY`, IDE 2026.3; not an API: an IDE without the
+         * key ignores it).
+         */
+        const val LAST_PARENT_PATH_KEY = "Git.CreateWorkingTree.LastParentPath"
     }
 }
