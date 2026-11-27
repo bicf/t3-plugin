@@ -130,8 +130,11 @@ jobs:
             --force \
             || true
 
-          gh pr create \
+          # The plugin is already on the Marketplace: a missing pull request does not fail the release.
+          if ! gh pr create \
             --title "Changelog update - \`$VERSION\`" \
             --body "Current pull request contains patched \`CHANGELOG.md\` file for the \`$VERSION\` version." \
             --label "$LABEL" \
-            --head $BRANCH
+            --head $BRANCH; then
+            echo "::warning::The workflow could not open the changelog pull request. Open it by hand from the branch $BRANCH."
+          fi
