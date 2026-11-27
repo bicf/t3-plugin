@@ -1,6 +1,7 @@
 package com.bicf.t3plugin.ide
 
 import com.intellij.openapi.vfs.VirtualFile
+import java.nio.file.Path
 import javax.swing.JComponent
 
 /**
@@ -26,4 +27,11 @@ interface T3GitSupport {
      * window does before it opens a worktree in a new window. Call it before the IDE opens a new worktree.
      */
     fun reloadWorktrees()
+
+    /**
+     * Makes [folder] the folder that the IDE dialog "Create worktree" proposes for the new worktrees of the project, when
+     * the project has no folder of its own yet (the user did not create a worktree in the IDE). Returns true when it set
+     * the folder. The user can still select another folder in the dialog.
+     */
+    fun proposeWorktreeFolder(folder: Path): Boolean
 }

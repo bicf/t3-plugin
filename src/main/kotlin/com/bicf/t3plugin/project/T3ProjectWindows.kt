@@ -7,6 +7,7 @@ import com.bicf.t3plugin.settings.T3Settings
 import com.bicf.t3plugin.toolWindow.T3Routes
 import com.bicf.t3plugin.toolWindow.T3ToolWindowFactory
 import com.intellij.ide.impl.ProjectUtil
+import com.intellij.ide.trustedProjects.TrustedProjects
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.ModalityState
 import com.intellij.openapi.components.Service
@@ -26,6 +27,7 @@ import com.intellij.openapi.util.io.FileUtil
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.openapi.wm.ToolWindowManager
 import com.intellij.util.concurrency.AppExecutorUtil
+import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.InvalidPathException
 import java.nio.file.Path
@@ -48,6 +50,9 @@ import java.util.concurrent.TimeUnit
  *   (see [T3ShellModel]), the worktree opens in a new IDE window as a Git worktree of the project (with the Git plugin,
  *   as "Open" in the "Worktrees" tab of the Git tool window), and the thread opens there in an editor tab. The tab of the
  *   same thread closes in the other IDE windows, also a draft tab that becomes the tab of this thread later.
+ * - A worktree window gets the trust of the window of its project: when that window is trusted, the worktree folder
+ *   becomes trusted before it opens, as after "Create worktree" of the IDE.
+ * - 2 paths are the same folder when they are equal or point to the same file (symlinks), as in the "Worktrees" tab.
  * - The plugin opens the editor tab of a new window when the window is ready (see [Startup]).
  * - The IDE opens `README.md` in a new window without open files (Advanced Settings, "ide.open.readme.md.on.startup").
  *   When the IDE opens a `README.md` in the [README_WAIT_S] seconds after the T3 tab of a new window, the T3 tab
@@ -104,7 +109,7 @@ class T3ProjectWindows {
         }
         val root = synchronized(model) { model.projectRoot(projectId) } ?: return null
         val target = worktree?.takeIf { openProject(it) != null } ?: root
-        if (FileUtil.pathsEqual(target, base)) return null
+        if (sameFolder(target, base)) return null
         return folder(target)?.takeIf { Files.isDirectory(it) }
     }
 
@@ -118,7 +123,7 @@ class T3ProjectWindows {
     fun worktreeThread(basePath: String?): String? {
         val folder = folder(basePath) ?: return null
         worktreeThreads[key(folder)]?.let { return it }
-        return synchronized(model) { model.threadInWorktree(folder.toString(), FileUtil::pathsEqual)?.id }
+        return synchronized(model) { model.threadInWorktree(folder.toString(), ::sameFolder)?.id }
     }
 
     /**
@@ -127,7 +132,7 @@ class T3ProjectWindows {
      */
     fun inOtherWorktreeWindow(project: Project, threadId: String): Boolean {
         val base = project.basePath ?: return false
-        return worktreeThreads.any { (folder, id) -> id == threadId && !FileUtil.pathsEqual(folder, base) && openProject(folder) != null }
+        return worktreeThreads.any { (folder, id) -> id == threadId && !sameFolder(folder, base) && openProject(folder) != null }
     }
 
     /** The page for the editor tab of [project], when the plugin opened its window. Runs on any thread. */
@@ -157,7 +162,10 @@ class T3ProjectWindows {
             pending[key(folder)] = page.orEmpty()
             try {
                 // As "Open" in the "Worktrees" tab of the Git tool window: reload the worktrees, then a new window.
-                if (worktree) context.serviceOrNull<T3GitSupport>()?.reloadWorktrees()
+                if (worktree) {
+                    context.serviceOrNull<T3GitSupport>()?.reloadWorktrees()
+                    if (TrustedProjects.isProjectTrusted(context)) TrustedProjects.setProjectTrusted(folder, true)
+                }
                 val opened = ProjectUtil.openOrImport(folder, null, true) ?: return@invokeLater
                 onProjectOpened(opened)
             } catch (e: ProcessCanceledException) {
@@ -208,10 +216,18 @@ class T3ProjectWindows {
     }
 
     private fun openProject(path: String): Project? = ProjectManager.getInstance().openProjects.firstOrNull { project ->
-        !project.isDisposed && project.basePath?.let { FileUtil.pathsEqual(it, path) } == true
+        !project.isDisposed && project.basePath?.let { sameFolder(it, path) } == true
     }
 
-    private fun key(folder: Path): String = FileUtil.toCanonicalPath(folder.toString())
+    /** The real path of [folder] when it exists, so that a symlink and its target have one key. */
+    private fun key(folder: Path): String {
+        val real = try {
+            folder.toRealPath()
+        } catch (e: IOException) {
+            folder
+        }
+        return FileUtil.toCanonicalPath(real.toString())
+    }
 
     private fun folder(path: String?): Path? = try {
         path?.takeIf { it.isNotBlank() }?.let { Path.of(it).toAbsolutePath().normalize() }
@@ -230,6 +246,18 @@ class T3ProjectWindows {
         private val LOG = logger<T3ProjectWindows>()
         private const val README = "README.md"
         private const val README_WAIT_S = 20L
+
+        /** True when [a] and [b] are equal paths, or 2 paths of the same existing folder. */
+        internal fun sameFolder(a: String, b: String): Boolean {
+            if (FileUtil.pathsEqual(a, b)) return true
+            return try {
+                Files.isSameFile(Path.of(a), Path.of(b))
+            } catch (e: IOException) {
+                false
+            } catch (e: InvalidPathException) {
+                false
+            }
+        }
 
         /** True when the sidebar must report its projects and threads: a local server and one of the 2 settings. */
         fun watchEnabled(remote: Boolean): Boolean {

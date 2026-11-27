@@ -1,29 +1,32 @@
 package com.bicf.t3plugin.project
 
-import com.bicf.t3plugin.server.T3Home
+import com.bicf.t3plugin.server.T3Cli
 import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.InvalidPathException
 import java.nio.file.Path
+import java.time.Duration
 
 /**
- * The Git worktrees that T3 creates for its threads (verified with T3 0.1.9).
+ * The Git worktrees of the T3 projects: the worktrees that T3 creates for its threads, and the worktrees that the IDE
+ * or `git worktree add` creates (verified with T3 0.1.9).
  *
  * Rules:
- * - T3 creates the worktree of a thread under `<T3 home>/worktrees/<project>/<name>`. The worktree has a `.git` file
- *   with `gitdir: <main>/.git/worktrees/<name>`; `<main>` is the folder of the T3 project.
- * - The T3 CLI does not know a worktree path as a project ("No T3 Code project matches"). An IDE window of a T3 worktree
- *   uses the main folder for the CLI, and never adds the worktree as a T3 project.
- * - Any other folder, also a Git worktree outside the T3 home, is its own project.
+ * - A worktree is a folder with a `.git` file `gitdir: <main>/.git/worktrees/<name>`, in any location. `<main>` is the
+ *   main folder of the repository. A relative `gitdir` starts in the worktree folder.
+ * - T3 creates the worktree of a thread under `<worktrees directory>/<project>/<name>` (see
+ *   [com.bicf.t3plugin.server.T3Home.worktreesDir]). The IDE creates its worktrees in the folder that the user selects.
+ * - The T3 CLI knows a folder only when a T3 project contains it ("No T3 Code project matches"). For a worktree that no
+ *   T3 project contains, the CLI uses the main folder.
+ * - An IDE window of a worktree never adds the worktree as a T3 project: T3 would show it as a separate project.
  */
 object T3Worktrees {
 
     private const val GITDIR = "gitdir:"
 
-    /** The main folder of the T3 project when [path] is a T3 worktree, otherwise null. Reads the `.git` file. */
-    fun mainFolder(path: Path, home: T3Home): Path? {
+    /** The main folder of the repository when [path] is a linked Git worktree, otherwise null. Reads the `.git` file. */
+    fun mainFolder(path: Path): Path? {
         val folder = path.toAbsolutePath().normalize()
-        if (!folder.startsWith(home.worktreesDir.toAbsolutePath().normalize())) return null
         val text = try {
             val git = folder.resolve(".git")
             if (!Files.isRegularFile(git)) return null
@@ -31,18 +34,41 @@ object T3Worktrees {
         } catch (e: IOException) {
             return null
         }
-        return mainFolderOf(text)
+        return mainFolderOf(text, folder)
     }
 
-    /** The folder for the T3 CLI: the main folder for a T3 worktree, otherwise [path]. */
-    fun cliFolder(path: String, home: T3Home): String =
-        runCatching { mainFolder(Path.of(path), home)?.toString() }.getOrNull() ?: path
+    /** [mainFolder] for a path text; null also for a path that is not valid. */
+    fun mainFolder(path: String?): Path? = path?.takeIf { it.isNotBlank() }?.let {
+        try {
+            mainFolder(Path.of(it))
+        } catch (e: InvalidPathException) {
+            null
+        }
+    }
 
-    /** `<main>` from the text of a `.git` file `gitdir: <main>/.git/worktrees/<name>`, or null. */
-    internal fun mainFolderOf(gitFile: String): Path? {
+    /**
+     * The folder for the T3 CLI: [path] when it is not a worktree or a T3 project contains it, otherwise the main
+     * folder. Blocks for up to 1 CLI call, only for a worktree.
+     */
+    fun cliFolder(cli: T3Cli, path: String, timeout: Duration = Duration.ofSeconds(30)): String {
+        val main = mainFolder(path) ?: return path
+        val list = cli.run(timeout, "thread", "list", "--project", path, "--json")
+        return if (list.exitCode == 0) path else main.toString()
+    }
+
+    /**
+     * `<main>` from the text of a `.git` file `gitdir: <main>/.git/worktrees/<name>`, or null.
+     * [folder] is the worktree folder, for a relative `gitdir`.
+     */
+    internal fun mainFolderOf(gitFile: String, folder: Path? = null): Path? {
         val line = gitFile.lineSequence().map(String::trim).firstOrNull { it.startsWith(GITDIR) } ?: return null
         val gitDir = try {
-            Path.of(line.removePrefix(GITDIR).trim()).normalize()
+            val value = Path.of(line.removePrefix(GITDIR).trim())
+            when {
+                value.isAbsolute -> value
+                folder != null -> folder.resolve(value)
+                else -> return null
+            }.normalize()
         } catch (e: InvalidPathException) {
             return null
         }

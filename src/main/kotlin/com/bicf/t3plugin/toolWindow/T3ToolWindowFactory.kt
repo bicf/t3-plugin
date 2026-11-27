@@ -1,7 +1,9 @@
 package com.bicf.t3plugin.toolWindow
 
 import com.bicf.t3plugin.T3Bundle
+import com.bicf.t3plugin.actions.T3NewWorktreeThreadAction
 import com.intellij.icons.AllIcons
+import com.intellij.openapi.actionSystem.ActionManager
 import com.intellij.openapi.actionSystem.ActionUpdateThread
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.project.DumbAware
@@ -22,7 +24,9 @@ class T3ToolWindowFactory : ToolWindowFactory, DumbAware {
         val factory = ContentFactory.getInstance()
         val content = if (JBCefApp.isSupported()) {
             val panel = T3BrowserPanel(project)
-            toolWindow.setTitleActions(listOf(ReconnectAction(panel)))
+            // "New T3 Thread in This Worktree" shows only in the window of a Git worktree.
+            val newWorktreeThread = ActionManager.getInstance().getAction(T3NewWorktreeThreadAction.ID)
+            toolWindow.setTitleActions(listOfNotNull(newWorktreeThread, ReconnectAction(panel)))
             factory.createContent(panel.component, null, false).apply { setDisposer(panel) }
         } else {
             factory.createContent(T3FallbackPanel(project).component, null, false)

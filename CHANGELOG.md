@@ -6,6 +6,20 @@
 
 ### Added
 
+- "New T3 Thread in This Worktree" (Tools menu and "T3 Code" tool window, only in the IDE window of a Git worktree): starts a T3 thread on the branch and in the folder of the worktree, with the T3 action "New thread on <branch>" of the thread of the worktree.
+- The IDE dialog "Create worktree" proposes the T3 worktrees folder of the project (`<Worktree location>/<project folder>`), when the project has no worktree folder of its own. The worktrees of the IDE and of T3 are then in one folder.
+
+### Fixed
+
+- A Git worktree that the IDE creates is not a separate T3 project: as a T3 worktree, its window adds no T3 project and opens the thread of the worktree.
+- The plugin uses the T3 setting "Worktree location" (`worktreesDirectory`), not always `~/.t3/worktrees`.
+- The plugin finds the IDE window of a worktree also through a symlink, and opens no second window for the same folder.
+- The window of a T3 worktree opens without a "Trust project" question when the window of its project is trusted.
+
+## [0.3.1] - 2026-11-21
+
+### Added
+
 - Each code block in a conversation (a block between ```` ``` ```` fences, also a Mermaid diagram) has an "Edit in composer" button, after "Copy code". The button puts the text of the block in the composer, after the draft; it sends nothing.
 
 ## [0.3.0] - 2026-11-19
@@ -56,5 +70,6 @@
 - The message box of the user has no plugin buttons: they never cover the text.
 - The hover styles of T3 work in the IDE browser. Before, the browser reported no mouse, so the action row under a message of the user showed only with the focus in the message, and rows and buttons had no hover color. The `matchMedia` of the page gives the same answer, so T3 reports a hover device to its tool views.
 
-[Unreleased]: https://github.com/bicf/t3-plugin/compare/0.3.0...HEAD
+[Unreleased]: https://github.com/bicf/t3-plugin/compare/0.3.1...HEAD
+[0.3.1]: https://github.com/bicf/t3-plugin/compare/0.3.0...0.3.1
 [0.3.0]: https://github.com/bicf/t3-plugin/commits/0.3.0
