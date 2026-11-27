@@ -50,3 +50,8 @@ intellijPlatformTesting {
         }
     }
 }
+
+// The release tags have no "v" prefix (0.3.2): patchChangelog links the versions to these tags.
+changelog {
+    versionPrefix = ""
+}
