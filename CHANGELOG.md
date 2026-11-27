@@ -72,7 +72,7 @@
 - The message box of the user has no plugin buttons: they never cover the text.
 - The hover styles of T3 work in the IDE browser. Before, the browser reported no mouse, so the action row under a message of the user showed only with the focus in the message, and rows and buttons had no hover color. The `matchMedia` of the page gives the same answer, so T3 reports a hover device to its tool views.
 
-[Unreleased]: https://github.com/bicf/t3-plugin/compare/v0.3.2...HEAD
-[0.3.2]: https://github.com/bicf/t3-plugin/compare/v0.3.1...v0.3.2
-[0.3.1]: https://github.com/bicf/t3-plugin/compare/v0.3.0...v0.3.1
-[0.3.0]: https://github.com/bicf/t3-plugin/commits/v0.3.0
+[Unreleased]: https://github.com/bicf/t3-plugin/compare/0.3.2...HEAD
+[0.3.2]: https://github.com/bicf/t3-plugin/compare/0.3.1...0.3.2
+[0.3.1]: https://github.com/bicf/t3-plugin/compare/0.3.0...0.3.1
+[0.3.0]: https://github.com/bicf/t3-plugin/commits/0.3.0
