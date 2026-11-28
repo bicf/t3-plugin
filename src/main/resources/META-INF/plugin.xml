@@ -8,7 +8,8 @@
         This plugin is not affiliated with or endorsed by the T3 Code project.</p>
         <p>Shows the <a href="https://t3.codes">T3 Code</a> web UI in JetBrains IDEs. Features:</p>
         <ul>
-            <li>The T3 sidebar in the "T3 Code" tool window, and each conversation in an editor tab.</li>
+            <li>The T3 sidebar in the "T3 Code" tool window, and each conversation in an editor tab. The right panel of T3
+                opens in the "T3 Workspace" tool window, and the "Thread details" card in the "T3 Details" tool window.</li>
             <li>The menu of a conversation tab has the thread actions of T3: rename, pin, settle, snooze, archive, delete, copy.</li>
             <li>With a local server, one IDE window per T3 project: a new T3 project opens in a new IDE window, and the
                 worktree of a new thread opens in a new IDE window as a Git worktree.</li>
@@ -46,6 +47,12 @@
                     canCloseContents="true"
                     doNotActivateOnStart="true"
                     factoryClass="com.bicf.t3plugin.workspace.T3WorkspaceToolWindowFactory"/>
+        <toolWindow id="T3 Details"
+                    anchor="right"
+                    icon="/icons/toolWindow.svg"
+                    canCloseContents="true"
+                    doNotActivateOnStart="true"
+                    factoryClass="com.bicf.t3plugin.workspace.T3DetailsToolWindowFactory"/>
         <applicationConfigurable parentId="tools"
                                  id="com.bicf.t3plugin.settings"
                                  key="settings.displayName"

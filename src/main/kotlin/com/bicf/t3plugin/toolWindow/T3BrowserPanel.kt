@@ -18,6 +18,7 @@ import com.bicf.t3plugin.server.T3Home
 import com.bicf.t3plugin.server.T3ServerService
 import com.bicf.t3plugin.settings.T3Settings
 import com.bicf.t3plugin.settings.T3SettingsListener
+import com.bicf.t3plugin.workspace.T3DetailsPanels
 import com.bicf.t3plugin.workspace.T3WorkspacePanels
 import com.intellij.ide.BrowserUtil
 import com.intellij.ide.ui.LafManagerListener
@@ -80,6 +81,8 @@ import javax.swing.JPanel
  *   of the tab without a click (a redirect), the tab follows T3 and does not load its page again.
  *   Without a session, the panel asks the user to open the tool window.
  * - "T3 Workspace" tool window ([T3PageTarget.Panel]): the right panel of the page of a tab (see [T3WorkspacePanels]).
+ * - "T3 Details" tool window ([T3PageTarget.Details]): the "Thread details" card of the page of a tab
+ *   (see [T3DetailsPanels]).
  * - Remote server (Settings): the panel never runs the CLI. Without a session, the user pastes a link from `t3 pair`.
  * - After a pairing, the panel waits until the page has a session, then opens the project page.
  * - Links outside the server origin open in the system browser (see [T3LinkPolicy]).
@@ -91,7 +94,9 @@ import javax.swing.JPanel
  *   gets an "Edit in composer" button (see [T3MessageActions]).
  * - Editor tab: the page sends the "thread visited" command only while the tab is on screen (see [T3VisitGate]).
  *   A thread that completes in a tab in the background keeps its unread state.
- * - "T3 Workspace": the page never sends the "thread visited" command; the tab of the same thread sends it.
+ * - "T3 Workspace" and "T3 Details": the page never sends the "thread visited" command; the tab of the same thread
+ *   sends it.
+ * - A conversation scrolled up shows a "Scroll to end" button, also when T3 shows none (see [T3ScrollToEnd]).
  * - Tool window with editor tabs: the sidebar marks the thread of the last selected T3 tab (see [T3SidebarMark]).
  * - Tool window, local server: the sidebar reports its projects and threads (see [T3ShellWatch]). A new T3 project and
  *   the worktree of a new thread open in new IDE windows, and a thread or a draft of another project opens in the IDE
@@ -168,6 +173,7 @@ internal class T3BrowserPanel(
         T3PageTarget.Navigator -> null
         is T3PageTarget.Tab -> t.file
         is T3PageTarget.Panel -> t.file
+        is T3PageTarget.Details -> t.file
     }
 
     /** The layout of the page; null for the full web UI (tool window without editor tabs). Read on CEF threads too. */
@@ -175,6 +181,7 @@ internal class T3BrowserPanel(
         T3PageTarget.Navigator -> if (T3Settings.getInstance().openThreadsInEditor) T3Layout.Mode.NAVIGATOR else null
         is T3PageTarget.Tab -> T3Layout.Mode.CONVERSATION
         is T3PageTarget.Panel -> T3Layout.Mode.PANEL
+        is T3PageTarget.Details -> T3Layout.Mode.DETAILS
     }
 
     /** The first page of the app in this panel, after a pairing or with a remote server. */
@@ -497,6 +504,7 @@ internal class T3BrowserPanel(
         execute(T3ClipboardBridge.script(CopyPasteManager.getInstance().isSystemSelectionSupported, report))
         execute(T3PointerMedia.script())
         execute(T3MessageActions.script())
+        execute(T3ScrollToEnd.script())
         val mode = layout
         if (mode != null) execute(T3Layout.script(mode, report)) else execute(T3SidebarResize.script())
         if (mode == T3Layout.Mode.NAVIGATOR) execute(T3SidebarMark.script(project.service<T3PageTabs>().lastThreadRoute()))
@@ -531,14 +539,19 @@ internal class T3BrowserPanel(
                 execute(T3RouteWatch.homeScript(T3Routes.NAVIGATOR_PATH))
             }
             is T3PageTarget.Tab -> onTabRoute(t.file, route, tabs)
-            is T3PageTarget.Panel -> {
-                val page = T3Routes.tabPage(path) ?: return
-                // Without a click, T3 replaced the page of the panel: a page load would bring the same redirect again.
-                if (page.key == t.file.page.key || !route.pushed) return
-                tabs.open(path)
-                execute(T3RouteWatch.backScript(t.file.pagePath))
-            }
+            is T3PageTarget.Panel -> onSideRoute(t.file, route, tabs)
+            is T3PageTarget.Details -> onSideRoute(t.file, route, tabs)
         }
+    }
+
+    /** A new page in the "T3 Workspace" or "T3 Details" tool window: another page opens in its own tab. */
+    private fun onSideRoute(file: T3PageFile, route: T3RouteWatch.Route, tabs: T3PageTabs) {
+        val path = route.path
+        val page = T3Routes.tabPage(path) ?: return
+        // Without a click, T3 replaced the page of the panel: a page load would bring the same redirect again.
+        if (page.key == file.page.key || !route.pushed) return
+        tabs.open(path)
+        execute(T3RouteWatch.backScript(file.pagePath))
     }
 
     /**
@@ -588,13 +601,21 @@ internal class T3BrowserPanel(
         if (pagePath?.let(T3Routes::tabPage)?.key == file.page.key) onThreadTitle(title)
     }
 
-    /** "Toggle right panel" in an editor tab, or T3 opened its right panel there (see [T3Layout]). */
+    /**
+     * "Toggle right panel" or "Toggle thread details panel" in an editor tab, or T3 opened its right panel in an editor
+     * tab or in the "T3 Details" tool window (see [T3Layout]).
+     */
     private fun onLayoutMessage(message: String) {
-        val file = (target as? T3PageTarget.Tab)?.file ?: return
-        val panels = project.service<T3WorkspacePanels>()
+        val file = when (val t = target) {
+            is T3PageTarget.Tab -> t.file
+            is T3PageTarget.Details -> t.file
+            else -> return
+        }
+        val tab = target is T3PageTarget.Tab
         when (message) {
-            T3Layout.PANEL_TOGGLE -> panels.toggle(file)
-            T3Layout.PANEL_OPENED -> panels.show(file, reload = true)
+            T3Layout.PANEL_TOGGLE -> if (tab) project.service<T3WorkspacePanels>().toggle(file)
+            T3Layout.PANEL_OPENED -> project.service<T3WorkspacePanels>().show(file, reload = true)
+            T3Layout.DETAILS_TOGGLE -> if (tab) project.service<T3DetailsPanels>().toggle(file)
         }
     }
 

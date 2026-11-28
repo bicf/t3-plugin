@@ -16,4 +16,7 @@ sealed interface T3PageTarget {
 
     /** The right panel of the page of [file], in the "T3 Workspace" tool window ([T3Layout.Mode.PANEL]). */
     data class Panel(val file: T3PageFile) : T3PageTarget
+
+    /** The "Thread details" card of the page of [file], in the "T3 Details" tool window ([T3Layout.Mode.DETAILS]). */
+    data class Details(val file: T3PageFile) : T3PageTarget
 }

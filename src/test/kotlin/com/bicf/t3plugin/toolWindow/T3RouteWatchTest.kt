@@ -74,7 +74,10 @@ class T3RouteWatchTest {
         val conversation = T3Layout.script(T3Layout.Mode.CONVERSATION) { "send($it)" }
         assertTrue(conversation.contains("[data-slot=sidebar]{display:none!important}"))
         assertTrue(conversation.contains("[aria-label^=\"Workspace panel\"]{display:none!important}"))
-        assertTrue(conversation.contains("var m='${T3Layout.PREFIX}${T3Layout.PANEL_TOGGLE}';send(m);"))
+        assertTrue(conversation.contains("m='${T3Layout.PREFIX}${T3Layout.PANEL_TOGGLE}';"))
+        assertTrue(conversation.contains("m='${T3Layout.PREFIX}${T3Layout.DETAILS_TOGGLE}';"))
+        assertTrue(conversation.contains("e.preventDefault();e.stopImmediatePropagation();send(m);"))
+        assertTrue(conversation.contains("[data-thread-details-panel],:has(> [data-thread-details-panel=popover]){display:none!important}"))
         assertTrue(conversation.contains("var m='${T3Layout.PREFIX}${T3Layout.PANEL_OPENED}';send(m);"))
         assertTrue(!T3Layout.earlyScript(T3Layout.Mode.CONVERSATION).contains("matchMedia"))
     }
