@@ -4,6 +4,8 @@
 
 ## [Unreleased]
 
+## [0.3.3] - 2026-11-28
+
 ### Added
 
 - "T3 Details" tool window: the "Thread details" card of T3 (environment, branch, pull requests, changes, servers, automations, lineage, usage) of the selected conversation tab, at the full size of the tool window. "Toggle thread details panel" in a conversation tab opens and closes it. The conversation tab no longer shows the card. When an item of the card opens the right panel of T3, the panel opens in the "T3 Workspace" tool window.
@@ -77,7 +79,8 @@
 - The message box of the user has no plugin buttons: they never cover the text.
 - The hover styles of T3 work in the IDE browser. Before, the browser reported no mouse, so the action row under a message of the user showed only with the focus in the message, and rows and buttons had no hover color. The `matchMedia` of the page gives the same answer, so T3 reports a hover device to its tool views.
 
-[Unreleased]: https://github.com/bicf/t3-plugin/compare/0.3.2...HEAD
+[Unreleased]: https://github.com/bicf/t3-plugin/compare/0.3.3...HEAD
+[0.3.3]: https://github.com/bicf/t3-plugin/compare/0.3.2...0.3.3
 [0.3.2]: https://github.com/bicf/t3-plugin/compare/0.3.1...0.3.2
 [0.3.1]: https://github.com/bicf/t3-plugin/compare/0.3.0...0.3.1
 [0.3.0]: https://github.com/bicf/t3-plugin/commits/0.3.0
