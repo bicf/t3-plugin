@@ -4,6 +4,11 @@
 
 ## [Unreleased]
 
+### Added
+
+- "T3 Details" tool window: the "Thread details" card of T3 (environment, branch, pull requests, changes, servers, automations, lineage, usage) of the selected conversation tab, at the full size of the tool window. "Toggle thread details panel" in a conversation tab opens and closes it. The conversation tab no longer shows the card. When an item of the card opens the right panel of T3, the panel opens in the "T3 Workspace" tool window.
+- A conversation scrolled up has a "Scroll to end" button above the composer, also when T3 shows no button of its own (for example, while the find bar is open). The page never shows 2 buttons.
+
 ## [0.3.2] - 2026-11-27
 
 ### Added

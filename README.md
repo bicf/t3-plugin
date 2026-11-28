@@ -4,7 +4,7 @@
 
 JetBrains IDE plugin that shows the [T3 Code](https://t3.codes) web UI in the IDE.
 The "T3 Code" tool window shows the T3 sidebar (projects and threads). Each conversation opens in an editor tab, without the T3 sidebars;
-the right panel of T3 (browser, device, pull requests, side chat) opens in the "T3 Workspace" tool window.
+the right panel of T3 (browser, device, pull requests, side chat) opens in the "T3 Workspace" tool window, and the "Thread details" card in the "T3 Details" tool window.
 File links, "Open in…", diffs, the terminal, the file panel and Git use the IDE tools, when the IDE has them.
 The menu of a conversation tab has the thread actions of T3 (rename, pin, settle, snooze, archive, delete, copy).
 With a local server, each T3 project has its IDE window: a new T3 project opens in a new IDE window, a thread of another project opens in the window of that project,
